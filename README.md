@@ -21,17 +21,19 @@ install_requires=[
 ### 开发环境
 
 ```bash
-#pip安装相应依赖
-#clone项目
+# python版本应在3.7及以上
+# pip安装相应依赖
+
+# clone项目
 # ssh (推荐使用)
 git clone git@codehub.devcloud.cn-north-4.huaweicloud.com:Reader00001/Reader-server.git
 
 # https
 # git clone https://codehub.devcloud.cn-north-4.huaweicloud.com/Reader00001/Reader-server.git
 
-#进入backend目录
-cd meta_info_system/backend
-#运行
+# 进入目录
+cd Reader-server
+# 运行
 export FLASK_APP=meta_info
 export FLASK_ENV=development
 export MYSQL_HOST= <mysql服务器地址，默认为127.0.0.1>
