@@ -23,7 +23,12 @@ install_requires=[
 ```bash
 #pip安装相应依赖
 #clone项目
-git clone https://gitee.com/killuayz/meta_info_system_frontend.git
+# ssh (推荐使用)
+git clone git@codehub.devcloud.cn-north-4.huaweicloud.com:Reader00001/Reader-server.git
+
+# https
+# git clone https://codehub.devcloud.cn-north-4.huaweicloud.com/Reader00001/Reader-server.git
+
 #进入backend目录
 cd meta_info_system/backend
 #运行
