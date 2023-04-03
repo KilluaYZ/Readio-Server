@@ -76,3 +76,4 @@ flask run
 
 
 ## okok
+# bu ok bushi
