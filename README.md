@@ -73,3 +73,6 @@ flask run
   - static   图片、css等
   - utils
   - \_\_init\_\_.py    生成flask app
+
+
+## okok
