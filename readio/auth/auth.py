@@ -6,17 +6,17 @@ import inspect
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from meta_info.utils.buildResponse import *
-from meta_info.utils.check import is_number
-from meta_info.manage.tagManage import query_sql,update_sql
-from meta_info.auth.routerdata import *
-from meta_info.utils.auth import build_token,get_user_by_token,build_session,update_token_visit_time,checkTokens
+from readio.utils.buildResponse import *
+from readio.utils.check import is_number
+from readio.manage.tagManage import query_sql,update_sql
+from readio.auth.routerdata import *
+from readio.utils.auth import build_token,get_user_by_token,build_session,update_token_visit_time,checkTokens
 # conndb = Conndb(cursor_mode='dict')
 auth = Blueprint('auth', __name__)
 
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 # tokenList = []
 
 @auth.route('/getRouters', methods=['GET'])

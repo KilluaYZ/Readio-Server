@@ -5,16 +5,16 @@ import sys
 import inspect
 
 
-from meta_info.utils.buildResponse import build_response,build_success_response,build_error_response
-from meta_info.utils.check import is_number
-from meta_info.utils.auth import checkTokens
+from readio.utils.buildResponse import build_response,build_success_response,build_error_response
+from readio.utils.check import is_number
+from readio.utils.auth import checkTokens
 # from database.connect import Conndb
  
 tag = Blueprint('tag', __name__)
 
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 '''
     重要数据项

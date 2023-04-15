@@ -1,16 +1,16 @@
 from setuptools import find_packages, setup
 # 1234c
 setup(
-    name='meta_info',
-    version='1.1.0',
+    name='readio',
+    version='1.0.0',
     packages=[
-        'meta_info',
-        'meta_info.auth',
-        'meta_info.database',
-        'meta_info.mainpage',
-        'meta_info.manage',
-        'meta_info.utils',
-        'meta_info.monitor',
+        'readio',
+        'readio.auth',
+        'readio.database',
+        'readio.mainpage',
+        'readio.manage',
+        'readio.utils',
+        'readio.monitor',
         ],
     include_package_data=True,
     zip_safe=False,

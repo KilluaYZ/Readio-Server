@@ -9,12 +9,12 @@ import sys
 import inspect
 from urllib.parse import  quote
 from flask import Blueprint
-from meta_info.utils.buildResponse import *
-from meta_info.utils.check import *
-from meta_info.utils.fileIO import encode_base64
-import meta_info.database.connectPool
+from readio.utils.buildResponse import *
+from readio.utils.check import *
+from readio.utils.fileIO import encode_base64
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 vis = Blueprint('vis', __name__)
 
@@ -104,7 +104,7 @@ def getNewPosts():
         print(e)
         return build_error_response()
 
-from meta_info.manage.tagManage import get_front_tag_tree_sql
+from readio.manage.tagManage import get_front_tag_tree_sql
  
 @vis.route('/getWordCloud', methods=['GET'])
 def getHotPosts_wordcloud():
@@ -128,14 +128,14 @@ def getHotPosts_wordcloud():
             min_font_size=10,            # 设置最小的字体大小，所有词都不会超过10px
             max_words=10,                # 设置最大的单词个数
             scale=2,                     # 扩大两倍
-            font_path=cur_path+'\\meta_info\\static\\font\\msyh.ttc'
+            font_path=cur_path+'\\readio\\static\\font\\msyh.ttc'
         )
         # print("[DEBUG] first_tag_list=",first_tag_list)
         # 根据文本数据生成词云
         wc.generate(word_text)
         # 保存词云文件
         # img_url = url_for('static',filename='img/wordcloud_img.jpg')
-        img_url = cur_path+'\\meta_info\\static\\img\\wordcloud_img.jpg'
+        img_url = cur_path+'\\readio\\static\\img\\wordcloud_img.jpg'
         wc.to_file(img_url)
         return send_file(img_url)
         # res = {

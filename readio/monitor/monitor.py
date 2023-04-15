@@ -7,10 +7,10 @@ import os
 import sys
 import inspect
 
-from meta_info.utils.buildResponse import *
-from meta_info.utils.check import is_number
+from readio.utils.buildResponse import *
+from readio.utils.check import is_number
 monitor = Blueprint('monitor', __name__)
-from meta_info.utils.auth import get_user_by_token,checkTokens
+from readio.utils.auth import get_user_by_token,checkTokens
 
 def get_host_ip():
     try:

@@ -7,12 +7,12 @@ import os
 import sys
 import click
 
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 def init_db():
     print("开始创建数据库")
-    pooldb.execute_scirpt('meta_info/database/init.sql')
+    pooldb.execute_scirpt('readio/database/init.sql')
     
 

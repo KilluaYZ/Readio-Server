@@ -7,15 +7,15 @@ import hashlib
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from meta_info.utils.buildResponse import *
-from meta_info.utils.check import is_number
-from meta_info.utils.auth import checkTokens
+from readio.utils.buildResponse import *
+from readio.utils.check import is_number
+from readio.utils.auth import checkTokens
 # conndb = Conndb(cursor_mode='dict')
 user = Blueprint('user', __name__)
 
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 
 
@@ -330,7 +330,7 @@ def forceLogout():
         return build_error_response()
 
 
-from meta_info.auth.auth import user_profile_update_user_pwd
+from readio.auth.auth import user_profile_update_user_pwd
 @user.route('/resetPwd', methods=['POST'])
 def resetPwd():
     try:

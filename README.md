@@ -34,13 +34,13 @@ git clone git@codehub.devcloud.cn-north-4.huaweicloud.com:Reader00001/Reader-ser
 # 进入目录
 cd Reader-server
 # 运行
-export FLASK_APP=meta_info
+export FLASK_APP=readio
 export FLASK_ENV=development
 export MYSQL_HOST= <mysql服务器地址，默认为127.0.0.1>
 export MYSQL_PORT= <mysql服务器端口，默认为3306>
 export MYSQL_USER= <mysql服务器用户，默认为root>
 export MYSQL_PASSWORD= <mysql服务器密码，默认为123456>
-export MYSQL_DATABASE= <mysql服务器数据库，默认为meta_info_db>
+export MYSQL_DATABASE= <mysql服务器数据库，默认为readio_db>
 export SERVER_IP= <后端服务器ip用于显示词云图，默认为127.0.0.1:5000>
 
 #如果是第一次运行，还需要运行以下命令，初始化数据库，可能需要开启mysql数据库的local_infile,具体见MySQL ERROR 3948
@@ -53,7 +53,7 @@ flask run
 
 ## 目录结构
 
-- meta_info
+- readio
   - auth
     - auth.py	用户登录注册，权限管理
     - routerdata.py   不同类型用户的菜单栏数据

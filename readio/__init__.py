@@ -9,20 +9,20 @@ import sys
 from sqlalchemy import func
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from meta_info.database.init_db import init_db
-from meta_info.manage.tagManage import tag
-from meta_info.manage.postManage import posts
-from meta_info.mainpage.visualization import vis
-from meta_info.auth.auth import auth
-from meta_info.monitor.monitor import monitor
-from meta_info.manage.userManage import user
+from readio.database.init_db import init_db
+from readio.manage.tagManage import tag
+from readio.manage.postManage import posts
+from readio.mainpage.visualization import vis
+from readio.auth.auth import auth
+from readio.monitor.monitor import monitor
+from readio.manage.userManage import user
 
-from meta_info.manage.tagManage import tag as prod_tag
-from meta_info.manage.postManage import posts as prod_posts
-from meta_info.mainpage.visualization import vis as prod_vis
-from meta_info.auth.auth import auth as prod_auth
-from meta_info.monitor.monitor import monitor as prod_monitor
-from meta_info.manage.userManage import user as prod_user
+from readio.manage.tagManage import tag as prod_tag
+from readio.manage.postManage import posts as prod_posts
+from readio.mainpage.visualization import vis as prod_vis
+from readio.auth.auth import auth as prod_auth
+from readio.monitor.monitor import monitor as prod_monitor
+from readio.manage.userManage import user as prod_user
 
 #创建flask app
 def create_app():
@@ -65,7 +65,7 @@ def create_app():
         app.register_blueprint(prod_user,url_prefix='/prod-api/user')
 
     #配置定时任务
-    from meta_info.manage.userManage import checkSessionsAvailability
+    from readio.manage.userManage import checkSessionsAvailability
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=checkSessionsAvailability,
                     id='checkSessionsAvailability',

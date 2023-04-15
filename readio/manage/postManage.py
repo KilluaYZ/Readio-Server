@@ -4,16 +4,16 @@ import os
 import sys
 import inspect
 
-from meta_info.utils.buildResponse import build_response,build_success_response,build_error_response
-from meta_info.utils.check import is_number
-from meta_info.manage.tagManage import query_sql,update_sql
-from meta_info.utils.auth import checkTokens
+from readio.utils.buildResponse import build_response,build_success_response,build_error_response
+from readio.utils.check import is_number
+from readio.manage.tagManage import query_sql,update_sql
+from readio.utils.auth import checkTokens
 # conndb = Conndb(cursor_mode='dict')
 posts = Blueprint('posts', __name__)
 
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 #帖子
 

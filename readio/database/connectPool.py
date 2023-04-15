@@ -14,11 +14,11 @@ import os
 class Pooldb:
     def __init__(
         self,
-        host="127.0.0.1", 
-        user="root", 
-        password="123456", 
-        database="meta_info_db",
-        port=3306,
+        host="43.138.62.72", 
+        user="readio", 
+        password="readio", 
+        database="readio_db",
+        port=6666,
         max_reconnect_time=20
     ):
         self.host = host
@@ -156,15 +156,15 @@ MYSQL_USER=os.environ.get('MYSQL_USER')
 MYSQL_PASSWORD=os.environ.get('MYSQL_PASSWORD')
 MYSQL_DATABASE=os.environ.get('MYSQL_DATABASE')
 if not MYSQL_HOST:
-    MYSQL_HOST = '127.0.0.1'
+    MYSQL_HOST = '43.138.62.72'
 if not MYSQL_PORT:
-    MYSQL_PORT = 3306
+    MYSQL_PORT = 6666
 if not MYSQL_USER:
-    MYSQL_USER = 'root'
+    MYSQL_USER = 'readio'
 if not MYSQL_PASSWORD:
-    MYSQL_PASSWORD = '123456'
+    MYSQL_PASSWORD = 'readio'
 if not MYSQL_DATABASE:
-    MYSQL_DATABASE = 'meta_info_db'
+    MYSQL_DATABASE = 'readio_db'
 
 global pooldb
 pooldb = Pooldb(host=MYSQL_HOST,

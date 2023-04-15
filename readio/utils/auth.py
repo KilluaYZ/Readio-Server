@@ -3,9 +3,9 @@ import inspect
 import hashlib
 import os
 from werkzeug.security import check_password_hash, generate_password_hash
-import meta_info.database.connectPool
+import readio.database.connectPool
 global pooldb
-pooldb = meta_info.database.connectPool.pooldb
+pooldb = readio.database.connectPool.pooldb
 
 def build_token():
     while True:
