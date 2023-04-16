@@ -62,15 +62,15 @@ def create_app():
         app.register_blueprint(prod_monitor,url_prefix='/prod-api/monitor')
         app.register_blueprint(prod_user,url_prefix='/prod-api/user')
 
-    #配置定时任务
-    from readio.manage.userManage import checkSessionsAvailability
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=checkSessionsAvailability,
-                    id='checkSessionsAvailability',
-                    trigger='interval',
-                    seconds=1800,
-                    replace_existing=True
-    )
+    # #配置定时任务
+    # from readio.manage.userManage import checkSessionsAvailability
+    # scheduler = BackgroundScheduler()
+    # scheduler.add_job(func=checkSessionsAvailability,
+    #                 id='checkSessionsAvailability',
+    #                 trigger='interval',
+    #                 seconds=1800,
+    #                 replace_existing=True
+    # )
     #启动任务列表
-    scheduler.start()
+    # scheduler.start()
     return app

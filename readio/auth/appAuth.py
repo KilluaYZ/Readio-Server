@@ -188,7 +188,10 @@ def getprofile():
                     "email": user['email'],
                     "phoneNumber": user['phoneNumber'],
                     "avator":user['avator'],
-                    "createTime":user['createTime']
+                    "createTime":user['createTime'],
+                    "fansNum":123,
+                    "subscribeNum":234,
+                    "hotNum":678
                 }
             }
             
