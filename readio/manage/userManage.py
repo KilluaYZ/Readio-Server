@@ -330,7 +330,7 @@ def forceLogout():
         return build_error_response()
 
 
-from readio.auth.auth import user_profile_update_user_pwd
+from readio.auth.webAuth import user_profile_update_user_pwd
 @user.route('/resetPwd', methods=['POST'])
 def resetPwd():
     try:

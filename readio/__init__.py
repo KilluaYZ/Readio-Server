@@ -12,15 +12,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from readio.database.init_db import init_db
 from readio.manage.tagManage import tag
 from readio.manage.postManage import posts
-from readio.mainpage.visualization import vis
-from readio.auth.auth import auth
+from readio.auth.webAuth import webAuth
+from readio.auth.appAuth import appAuth
 from readio.monitor.monitor import monitor
 from readio.manage.userManage import user
 
 from readio.manage.tagManage import tag as prod_tag
 from readio.manage.postManage import posts as prod_posts
-from readio.mainpage.visualization import vis as prod_vis
-from readio.auth.auth import auth as prod_auth
+from readio.auth.webAuth import webAuth as prod_auth
 from readio.monitor.monitor import monitor as prod_monitor
 from readio.manage.userManage import user as prod_user
 
@@ -50,8 +49,8 @@ def create_app():
         print('当前服务器在开发环境下运行')
         app.register_blueprint(tag,url_prefix='/tag')
         app.register_blueprint(posts,url_prefix='/post')
-        app.register_blueprint(vis,url_prefix='/vis')
-        app.register_blueprint(auth,url_prefix='/auth')
+        app.register_blueprint(webAuth,url_prefix='/auth/web')
+        app.register_blueprint(appAuth,url_prefix='/auth/app')
         app.register_blueprint(monitor,url_prefix='/monitor')
         app.register_blueprint(user,url_prefix='/user')
     #生产环境蓝图注册
@@ -59,7 +58,6 @@ def create_app():
         print('当前服务器在生产环境下运行')
         app.register_blueprint(prod_tag,url_prefix='/prod-api/tag')
         app.register_blueprint(prod_posts,url_prefix='/prod-api/post')
-        app.register_blueprint(prod_vis,url_prefix='/prod-api/vis')
         app.register_blueprint(prod_auth,url_prefix='/prod-api/auth')
         app.register_blueprint(prod_monitor,url_prefix='/prod-api/monitor')
         app.register_blueprint(prod_user,url_prefix='/prod-api/user')
