@@ -12,14 +12,14 @@ from readio.manage.tagManage import query_sql,update_sql
 from readio.auth.routerdata import *
 from readio.utils.auth import build_token,get_user_by_token,build_session,update_token_visit_time,checkTokens
 # conndb = Conndb(cursor_mode='dict')
-auth = Blueprint('auth', __name__)
+webAuth = Blueprint('/auth/web', __name__)
 
 import readio.database.connectPool
 global pooldb
 pooldb = readio.database.connectPool.pooldb
 # tokenList = []
 
-@auth.route('/getRouters', methods=['GET'])
+@webAuth.route('/getRouters', methods=['GET'])
 def getRouters():
     token = request.cookies.get('Admin-Token')
     if token is None:
@@ -88,7 +88,7 @@ def checkUsernameIsUnique(username):
         if conn is not None:
             pooldb.close_conn(conn,cursor)
  
-@auth.route('/register', methods=['POST'])
+@webAuth.route('/register', methods=['POST'])
 def register():
     try:
         data = request.json
@@ -104,7 +104,7 @@ def register():
         return build_error_response(msg='注册失败')
 
 #收到用户名密码，返回会话对应的toKen
-@auth.route('/login', methods=['POST'])
+@webAuth.route('/login', methods=['POST'])
 def login():
     try:
         data = request.json
@@ -129,7 +129,7 @@ def login():
     
 
 #获取用户的详细信息
-@auth.route('/getInfo', methods=['GET'])
+@webAuth.route('/web/getInfo', methods=['GET'])
 def getInfo():
     try:
         token = request.cookies.get('Admin-Token')
@@ -183,7 +183,7 @@ def getInfo():
         return build_error_response()
         
 #退出登录，本质上就是删除与用户建立的对话
-@auth.route('/logout', methods=['POST','GET'])
+@webAuth.route('/logout', methods=['POST','GET'])
 def logout():
     try:
         token = request.cookies.get('Admin-Token')
@@ -202,7 +202,7 @@ def logout():
             pooldb.close_conn(conn,cursor)
         return build_error_response()
 
-@auth.route('/captchaImage', methods=['POST','GET'])
+@webAuth.route('/captchaImage', methods=['POST','GET'])
 def captchaImage():
     return build_success_response()
 
@@ -221,7 +221,7 @@ def user_profile_update_user_sql(data):
             pooldb.close_conn(conn,cursor)
         raise Exception('update_ser_sql错误')
 
-@auth.route('/profile', methods=['GET','POST'])
+@webAuth.route('/profile', methods=['GET','POST'])
 def getprofile():
     try:
         if request.method == 'GET':
@@ -307,7 +307,7 @@ def user_profile_update_user_pwd(uid,pwd):
             pooldb.close_conn(conn,cursor)
         raise Exception(f'用户{uid}密码修改失败')
 
-@auth.route('/profile/updatePwd', methods=['POST'])
+@webAuth.route('/profile/updatePwd', methods=['POST'])
 def updatePwd():
     try:
         

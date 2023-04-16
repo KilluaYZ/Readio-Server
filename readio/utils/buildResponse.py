@@ -2,9 +2,10 @@
 该文件包含的函数主要功能是构造response
 '''
 import json
+from flask import make_response
 
 def build_response(code:int,msg:str,data={},length=0):
-    return json.dumps({'code':code,'msg':msg,'data':data,'length':length})
+    return make_response(json.dumps({'code':code,'msg':msg,'data':data,'length':length}), code)
 
 def build_error_response(code=400,msg='操作失败'):
     return build_response(code,msg)

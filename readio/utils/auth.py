@@ -2,10 +2,12 @@ from flask import request
 import inspect
 import hashlib
 import os
+import random
 from werkzeug.security import check_password_hash, generate_password_hash
 import readio.database.connectPool
 global pooldb
 pooldb = readio.database.connectPool.pooldb
+from  readio.utils.buildResponse import *
 
 def build_token():
     while True:
@@ -51,7 +53,7 @@ def update_token_visit_time(token):
 def get_user_by_token(token):
     try:
         conn,cursor = pooldb.get_conn()
-        cursor.execute('select * from user, user_token where token=%s and user_token.uid=user.uid',(token))
+        cursor.execute('select * from users, user_token where token=%s and user_token.uid=users.id',(token))
         row = cursor.fetchone()
         if row is None or len(row) <= 0:
             raise Exception('会话不存在')
@@ -81,12 +83,12 @@ def checkTokens(token,roles):
             if user['roles'] != 'admin':
                 #没有权限
                 return 403
-        elif roles == 'tagger':
-            if user['roles'] not in ['admin','tagger']:
+        elif roles == 'manager':
+            if user['roles'] not in ['admin','manager']:
                 #没有权限
                 return 403
         elif roles == 'common':
-            if user['roles'] not in ['admin','tagger','common']:
+            if user['roles'] not in ['admin','manager','common']:
                 return 403
         else:
             #未知roles
@@ -101,4 +103,24 @@ def checkTokens(token,roles):
         #运行时错误
         return 500
 
+#检查Token和权限，如果不是200就直接返回到客户端
+def checkTokensReponseIfNot200(token, roles):
+    state = checkTokens(token,roles)
+    if state == 404:
+        return build_error_response(400,'会话未建立，请重新登录')
+    elif state == 403:
+        return build_error_response(403,'您没有该操作的权限，请联系管理员')
+    elif state == 500:
+        return build_error_response(500,'服务器内部发生错误，请联系管理员')
 
+
+def random_gen_str(strlen = 14)->str:
+    char_list = 'qwertyuiopasdfghjklzxcvbnm1234567890QWERTYUIOPASDFGHJKLZXCVBNM_'
+    res = ''
+    for _ in range(strlen):
+        res += char_list[random.randint(0,len(char_list)-1)]
+    return res
+
+
+def random_gen_username():
+    return random_gen_str()
