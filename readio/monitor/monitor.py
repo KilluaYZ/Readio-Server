@@ -9,8 +9,10 @@ import inspect
 
 from readio.utils.buildResponse import *
 from readio.utils.check import is_number
+
 monitor = Blueprint('monitor', __name__)
-from readio.utils.auth import get_user_by_token,checkTokens
+from readio.utils.auth import get_user_by_token, checkTokens
+
 
 def get_host_ip():
     try:
@@ -19,19 +21,20 @@ def get_host_ip():
         ip = s.getsockname()[0]
     finally:
         s.close()
-        
+
     return ip
+
 
 @monitor.route('/server', methods=['GET'])
 def getPlantformInfo():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokens(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
-            return build_error_response(400,'会话未建立，请重新登录')
+            return build_error_response(400, '会话未建立，请重新登录')
         elif state == 403:
-            return build_error_response(403,'您没有该操作的权限，请联系管理员')
+            return build_error_response(403, '您没有该操作的权限，请联系管理员')
         elif state == 500:
-            return build_error_response(500,'服务器内部发生错误，请联系管理员')
+            return build_error_response(500, '服务器内部发生错误，请联系管理员')
 
         token = request.cookies.get('Admin-Token')
         if token is None:
@@ -39,21 +42,21 @@ def getPlantformInfo():
         user = get_user_by_token(token)
         if user is None:
             raise Exception('未登录无法查询')
-        
+
         cpu_used = cpu_percent(interval=2)
         cpu_free = 100.0 - cpu_used
         mem_info = virtual_memory()
-        
+
         res = {
-            "cpu":{
-                "cpuType":str(platform.processor()),
-                "used":str(cpu_used),
-                "free":str(cpu_free)
+            "cpu": {
+                "cpuType": str(platform.processor()),
+                "used": str(cpu_used),
+                "free": str(cpu_free)
             },
-            "mem":{
-                "total": "%.2f" % (mem_info[0]/(float)(1024*1024*1024)),
-                "used": "%.2f" % (mem_info[3]/(float)(1024*1024*1024)),
-                "free": "%.2f" % (mem_info[4]/(float)(1024*1024*1024)),
+            "mem": {
+                "total": "%.2f" % (mem_info[0] / (float)(1024 * 1024 * 1024)),
+                "used": "%.2f" % (mem_info[3] / (float)(1024 * 1024 * 1024)),
+                "free": "%.2f" % (mem_info[4] / (float)(1024 * 1024 * 1024)),
                 "usage": "%.2f" % (mem_info[2])
             },
             "sys": {
@@ -64,9 +67,8 @@ def getPlantformInfo():
             }
         }
         return build_success_response(res)
-    
+
     except Exception as e:
-        print("[ERROR]"+__file__+"::"+inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         return build_error_response()
-        
