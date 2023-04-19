@@ -43,9 +43,10 @@ def recommend():
     sentences_rec = choose(sentences_all, size=1)
     # print(type(sentences_rec), sentences_rec)
     response = {
-        "msg": "1",
+        "length": len(sentences_rec),
         "data": sentences_rec
     }
-    response = build_raw_response(response)
+    # response = build_raw_response(response)
+    response = build_success_response(response)
     # print(type(response), response)
     return response
