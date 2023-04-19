@@ -136,7 +136,7 @@ def login():
 @appAuth.route('/logout', methods=['POST', 'GET'])
 def logout():
     try:
-        token = request.cookies.get('Admin-Token')
+        token = request.headers.get('Authorization')
         if token is None:
             return build_success_response()
         conn, cursor = pooldb.get_conn()
@@ -175,7 +175,7 @@ def user_profile_update_user_sql(userId, data):
 def getprofile():
     try:
         if request.method == 'GET':
-            token = request.cookies.get('Admin-Token')
+            token = request.headers.get('Authorization')
             if token is None:
                 raise Exception('token不存在，无法查询')
 
@@ -207,7 +207,7 @@ def getprofile():
             return build_success_response(response)
 
         elif request.method == 'POST':
-            token = request.cookies.get('Admin-Token')
+            token = request.headers.get('Authorization')
             if token is None:
                 raise Exception('token不存在，无法修改信息')
 
@@ -244,8 +244,8 @@ def updatePwd():
         data = request.json
         if ('oldPassword' not in data or 'newPassword' not in data):
             raise Exception('前端数据错误，不存在oldPassword或newPassword')
-
-        token = request.cookies.get('Admin-Token')
+        
+        token = request.headers.get('Authorization')
         if token is None:
             raise Exception('token不存在')
 

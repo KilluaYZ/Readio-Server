@@ -7,7 +7,7 @@ import os
 import sys
 
 from sqlalchemy import func
-from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.schedulers.background import BackgroundScheduler
 
 from readio.database.init_db import init_db
 from readio.manage.tagManage import tag
