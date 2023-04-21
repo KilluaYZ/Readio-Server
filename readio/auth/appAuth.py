@@ -1,12 +1,17 @@
+import functools
 from flask import request
 from flask import Blueprint
+from flask import g
+from flask import redirect
+from flask import url_for
 import inspect
 from werkzeug.security import check_password_hash, generate_password_hash
 from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
 
-appAuth = Blueprint('/auth/app', __name__)
+# appAuth = Blueprint('/auth/app', __name__)
+bp = Blueprint('auth', __name__, url_prefix='/app/auth')
 
 pooldb = readio.database.connectPool.pooldb
 
@@ -89,12 +94,12 @@ def checkPhoneNumberIsUnique(phoneNumer):
             pooldb.close_conn(conn, cursor)
 
 
-@appAuth.route('/register', methods=['POST'])
+@bp.route('/register', methods=['POST'])
 def register():
     try:
         data = request.json
         if 'phoneNumber' not in data or 'passWord' not in data:
-            raise Exception('前端数据错误！缺少phoneNumer或passWord')
+            raise Exception('前端数据错误！缺少phoneNumber或passWord')
         if not checkPhoneNumberIsUnique(data['phoneNumber']):
             return build_error_response(msg='该手机号已被注册')
         register_user_sql(data['passWord'], data['phoneNumber'])
@@ -107,7 +112,7 @@ def register():
 
 
 # 收到用户名密码，返回会话对应的toKen
-@appAuth.route('/login', methods=['POST'])
+@bp.route('/login', methods=['POST'])
 def login():
     try:
         data = request.json
@@ -130,10 +135,9 @@ def login():
         print(e)
         return build_error_response(msg='登录失败')
 
-    # 退出登录，本质上就是删除与用户建立的对话
 
-
-@appAuth.route('/logout', methods=['POST', 'GET'])
+# 退出登录，本质上就是删除与用户建立的对话
+@bp.route('/logout', methods=['POST', 'GET'])
 def logout():
     try:
         token = request.headers.get('Authorization')
@@ -171,7 +175,7 @@ def user_profile_update_user_sql(userId, data):
 
 
 # 获取用户详细信息
-@appAuth.route('/profile', methods=['GET', 'POST'])
+@bp.route('/profile', methods=['GET', 'POST'])
 def getprofile():
     try:
         if request.method == 'GET':
@@ -238,13 +242,13 @@ def user_profile_update_user_pwd(uid, pwd):
         raise Exception(f'用户{uid}密码修改失败')
 
 
-@appAuth.route('/profile/updatePwd', methods=['POST'])
+@bp.route('/profile/updatePwd', methods=['POST'])
 def updatePwd():
     try:
         data = request.json
         if ('oldPassword' not in data or 'newPassword' not in data):
             raise Exception('前端数据错误，不存在oldPassword或newPassword')
-        
+
         token = request.headers.get('Authorization')
         if token is None:
             raise Exception('token不存在')
@@ -265,3 +269,16 @@ def updatePwd():
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         return build_error_response()
+
+
+def login_required(view):
+    """将匿名用户重定向到登录页面的视图装饰器。"""
+
+    @functools.wraps(view)
+    def wrapped_view(**kwargs):
+        if g.user is None:
+            return redirect(url_for("auth.login"))
+
+        return view(**kwargs)
+
+    return wrapped_view

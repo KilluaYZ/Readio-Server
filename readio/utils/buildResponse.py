@@ -13,7 +13,7 @@ def build_error_response(code=400, msg='操作失败'):
     return build_response(code, msg)
 
 
-def build_success_response(data={}):
+def build_success_response(data=None):
     return build_response(200, '操作成功', data)
 
 
