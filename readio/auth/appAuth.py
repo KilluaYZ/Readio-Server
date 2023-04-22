@@ -169,7 +169,7 @@ def user_profile_update_user_sql(userId, data):
 
 # 获取用户详细信息
 @bp.route('/profile', methods=['GET', 'POST'])
-def getprofile():
+def profile():
     try:
         if request.method == 'GET':
             user = check_user_before_request(request)

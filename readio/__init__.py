@@ -68,13 +68,13 @@ def create_app():
         app.register_blueprint(prod_user, url_prefix='/prod-api/user')
 
     #配置定时任务
-    #该任务作用是每个一个小时检查一次user_token表，将超过15天未活动的token删掉
-    from manage.userManage import checkSessionsAvailability
+    #该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改
+    from readio.manage.userManage import checkSessionsAvailability
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=checkSessionsAvailability,
                     id='checkSessionsAvailability',
                     trigger='interval',
-                    seconds=1800,
+                    seconds=3600,
                     replace_existing=True
     )
     #启动任务列表
@@ -135,11 +135,13 @@ def app_test(app):
         # login
         resp_dict = client_test(client, url_for_='auth.login', method='POST', headers=headers, data=user_data)
         # profile
-        token = resp_dict.get('token', None)
+        # token = resp_dict.get('token', None)
+        token = resp_dict['data']['token']
+        print(f'[INFO] token = {token}')
         user_data['Authorization'] = token
         # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
-        profile_dict = client_test(client, 'auth.getprofile', 'GET', headers=headers, data=user_data)
-        uid = profile_dict['data']['data']['userId'] if profile_dict is not None else None
+        profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, data=user_data)
+        uid = profile_dict['data']['userInfo']['userId'] if profile_dict is not None else None
         # print(id_)
 
         """ test bookshelf """

@@ -396,15 +396,13 @@ def updatePwd():
 def checkSessionsAvailability():
     try:
         conn,cursor = pooldb.get_conn()
-        cursor.execute('delete from user_token where timestampdiff(minute,visitTime,CURRENT_TIMESTAMP) >= 30')
+        cursor.execute('delete from user_token where timestampdiff(minute,visitTime,CURRENT_TIMESTAMP) >= 1440')
         conn.commit()
         pooldb.close_conn(conn,cursor)
-        
-        return build_success_response()
     
     except Exception as e:
         print("[ERROR]"+__file__+"::"+inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         if conn is not None:
             pooldb.close_conn(conn,cursor)
-        return build_error_response()
+        
