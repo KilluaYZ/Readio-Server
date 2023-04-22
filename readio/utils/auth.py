@@ -3,12 +3,15 @@ import inspect
 import hashlib
 import os
 import random
+
+from typing import Dict, Union
 from werkzeug.security import check_password_hash, generate_password_hash
 import readio.database.connectPool
 
 global pooldb
 pooldb = readio.database.connectPool.pooldb
-from  readio.utils.buildResponse import *
+from readio.utils.buildResponse import *
+
 
 def build_token():
     while True:
@@ -54,10 +57,10 @@ def update_token_visit_time(token):
         raise Exception('更新token状态失败')
 
 
-def get_user_by_token(token):
+def get_user_by_token(token) -> Dict[str, Union[int, str]]:
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select * from users, user_token where token=%s and user_token.uid=users.id', (token))
+        cursor.execute('select * from users, user_token where token=%s and user_token.uid=users.id', token)
         row = cursor.fetchone()
         if row is None or len(row) <= 0:
             raise Exception('会话不存在')
@@ -75,7 +78,7 @@ def get_user_by_token(token):
 
 def checkTokens(token, roles):
     try:
-        if token == None:
+        if token is None:
             return 404
 
         # print('token=',token)
@@ -118,6 +121,24 @@ def checkTokensReponseIfNot200(token, roles):
         return build_error_response(403, '您没有该操作的权限，请联系管理员')
     elif state == 500:
         return build_error_response(500, '服务器内部发生错误，请联系管理员')
+
+
+def check_user_before_request(req):
+    """
+    在请求前检查用户是否有访问该API的权限
+    :param req: 请求对象，包含了HTTP请求头部信息
+    :return: 返回具有该访问凭证的用户信息对象
+    """
+    token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
+    if token is None:
+        raise Exception('访问凭证不存在，无法进行访问')
+
+    # 检查访问凭证是否有效
+    checkTokensReponseIfNot200(token, 'common')
+
+    # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
+    user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
+    return user
 
 
 def random_gen_str(strlen=14) -> str:

@@ -1,13 +1,10 @@
-from distutils.log import debug
 from flask import Flask, url_for
-from flask import request
 from flask_cors import CORS  # 跨域
 # from dbtest.showdata10 import db # 引入其他蓝图
 import os
 import json
-import sys
+from typing import Dict
 
-from sqlalchemy import func
 # from apscheduler.schedulers.background import BackgroundScheduler
 
 from readio.database.init_db import init_db
@@ -19,8 +16,7 @@ from readio.monitor.monitor import monitor
 from readio.manage.userManage import user
 # app
 from readio.auth import appAuth
-from readio.mainpage import appHomePage
-from readio.mainpage.appBookListPage import appBookListPage
+from readio.mainpage import appHomePage, appBookShelfPage
 
 from readio.manage.tagManage import tag as prod_tag
 from readio.manage.postManage import posts as prod_posts
@@ -61,7 +57,7 @@ def create_app():
         # app.register_blueprint(appAuth, url_prefix='/auth/app')
         app.register_blueprint(appAuth.bp)
         app.register_blueprint(appHomePage.bp)
-        app.register_blueprint(appBookListPage.bp)
+        app.register_blueprint(appBookShelfPage.bp)
     # 生产环境蓝图注册
     elif FLASK_ENV is None or FLASK_ENV == 'production':
         print('当前服务器在生产环境下运行')
@@ -84,7 +80,7 @@ def create_app():
     # scheduler.start()
     """ 测试 """
     # app_test(app)
-    
+
     return app
 
 
@@ -102,17 +98,19 @@ def json_append(json_old, key: str, value):
 
 
 # post return dict
-def client_test(client, url_for_: str, method: str, data=None):
+def client_test(client, url_for_: str, method: str, headers, data=None) -> Dict[str, any]:
     url = url_for(url_for_)
     print('\t------------')
-    print('test url:', url)
+    print('\t[test url]:', url)
     if method == 'POST':
-        response = response2dict(client.post(url, json=data))
+        # headers.update(data)
+        response = response2dict(client.post(url, headers=headers, json=data))
     elif method == 'GET':
-        response = response2dict(client.get(url, headers=data))
+        headers.update(data) if data is not None else None
+        response = response2dict(client.get(url, headers=headers))
     else:
         response = 'test: No method!'
-    print("client get:", type(response), response)
+    print("\t[client get]:", type(response), response)
     print('\t------------')
     return response
 
@@ -122,6 +120,9 @@ def app_test(app):
         # 使用测试客户端发送请求
         client = app.test_client()
         """ test auth """
+        headers = {
+            'Content-Type': 'application/json',
+        }
         user_data = {
             "phoneNumber": "19800380215",
             "passWord": "123456"
@@ -129,13 +130,30 @@ def app_test(app):
         # register
         # client_test(client, url_for_='auth.register', method='POST', data=user_data)
         # login
-        resp_dict = client_test(client, url_for_='auth.login', method='POST', data=user_data)
+        resp_dict = client_test(client, url_for_='auth.login', method='POST', headers=headers, data=user_data)
         # profile
         token = resp_dict.get('token', None)
         user_data['Authorization'] = token
         # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
-        # print(user_data)
-        profile_dict = client_test(client, url_for_='auth.getprofile', method='GET', data=user_data)
+        profile_dict = client_test(client, 'auth.getprofile', 'GET', headers=headers, data=user_data)
+        uid = profile_dict['data']['data']['userId'] if profile_dict is not None else None
+        # print(id_)
+
+        """ test bookshelf """
+        # index
+        bookshelf_dict = client_test(client, url_for_='bookshelf.index', method='GET',
+                                     headers=headers, data=user_data)
+        read_info = dict()
+        read_info['userId'] = uid if uid is not None else 3
+        read_info['bookId'] = 4
+        read_info['progress'] = 3
+        # print(read_info)
+        # add
+        # client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
+        # update
+        # client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
+        # del
+        # client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)
 
         """ test homepage """
         # # 获取url: /app/homepage
@@ -144,11 +162,3 @@ def app_test(app):
         # client = app.test_client()
         # response = client.get(url_homeapge)
         # assert response.status_code == 200
-
-        # print(url_for('login'))
-        # print(url_for('login', next='/'))
-        # print(url_for('profile', username='John Doe'))
-        # assert b'Hello, John!' in response.data
-
-        # 获取请求上下文中保存的请求对象
-        # assert request.args['name'] == 'John'

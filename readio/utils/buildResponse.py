@@ -1,6 +1,6 @@
-'''
+"""
 该文件包含的函数主要功能是构造response
-'''
+"""
 import json
 from flask import make_response
 
@@ -23,3 +23,8 @@ def build_404_response():
 
 def build_raw_response(response):
     return json.dumps(response)
+
+
+def build_redirect_response(msg: str, url: str):
+    url_data = dict({'url': url})
+    return build_response(302, msg, url_data)

@@ -1,7 +1,6 @@
 import functools
 from flask import request
 from flask import Blueprint
-from flask import g
 from flask import redirect
 from flask import url_for
 import inspect
@@ -246,7 +245,7 @@ def user_profile_update_user_pwd(uid, pwd):
 def updatePwd():
     try:
         data = request.json
-        if ('oldPassword' not in data or 'newPassword' not in data):
+        if 'oldPassword' not in data or 'newPassword' not in data:
             raise Exception('前端数据错误，不存在oldPassword或newPassword')
 
         token = request.headers.get('Authorization')
@@ -269,16 +268,3 @@ def updatePwd():
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         return build_error_response()
-
-
-def login_required(view):
-    """将匿名用户重定向到登录页面的视图装饰器。"""
-
-    @functools.wraps(view)
-    def wrapped_view(**kwargs):
-        if g.user is None:
-            return redirect(url_for("auth.login"))
-
-        return view(**kwargs)
-
-    return wrapped_view
