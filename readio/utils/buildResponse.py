@@ -5,7 +5,9 @@ import json
 from flask import make_response
 
 
-def build_response(code: int, msg: str, data={}):
+def build_response(code: int, msg: str, data=None):
+    if data is None:
+        data = {}
     return make_response(json.dumps({'code': code, 'msg': msg, 'data': data}), code)
 
 

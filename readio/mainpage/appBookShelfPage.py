@@ -1,6 +1,5 @@
 from flask import Blueprint
 from flask import request
-from flask import flash
 from flask import url_for
 import inspect
 from typing import List, Dict
@@ -174,16 +173,16 @@ def delete():
         return response
 
 
-@bp.route('/', methods=['GET'])
+@bp.route('/list', methods=['GET'])
 def index():
     """展示用户书架"""
     # books: [{},{}]
     if request.method == 'GET':
         user = check_user_before_request(request)
         books = get_books(user['id'])
-        print(type(books[0]), books[0]) if len(books) > 0 else print('get books of user:', books)
+        # print(type(books[0]), books[0]) if len(books) > 0 else print('get 0 books from user:', books)
         data = {
-            "length": len(books),
+            "size": len(books),
             "data": books
         }
         response = build_success_response(data)
