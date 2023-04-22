@@ -1,20 +1,10 @@
 # Backend
 基于flask框架搭建的后端服务器
-记得提交到dev中
 
 ## 依赖
 
-```
-install_requires=[
-        'flask',
-        'PyMySql',
-        'flask_cors',
-        'sqlalchemy',
-        'DButils',
-        'wordcloud',
-        'psutil',
-        'flask_apscheduler'
-    ]
+```bash
+pip install -r requirements.txt
 ```
 
 ## 部署方式
@@ -44,19 +34,15 @@ export MYSQL_PASSWORD= <mysql服务器密码，默认为123456>
 export MYSQL_DATABASE= <mysql服务器数据库，默认为readio_db>
 export SERVER_IP= <后端服务器ip用于显示词云图，默认为127.0.0.1:5000>
 
-#如果是第一次运行，还需要运行以下命令，初始化数据库，可能需要开启mysql数据库的local_infile,具体见MySQL ERROR 3948
-flask init-db
-
 flask run
 ```
-
-
 
 ## 目录结构
 
 - readio
   - auth
-    - auth.py	用户登录注册，权限管理
+    - appAuth.py	app用户登录注册，权限管理
+    - webAuth.py  web后端登录注册，权限管理
     - routerdata.py   不同类型用户的菜单栏数据
   - database
     - connectPool.py	与MySQL数据库交互
@@ -74,7 +60,3 @@ flask run
   - static   图片、css等
   - utils
   - \_\_init\_\_.py    生成flask app
-
-
-## okok
-# bu ok bushi

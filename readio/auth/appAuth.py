@@ -127,7 +127,7 @@ def login():
         token = build_session(user['id'])
         print('[DEBUG] get token, token = ', token)
         # tokenList.append(token)
-        return build_raw_response({"msg": '操作成功', "token": token})
+        return build_success_response({"msg": '操作成功', "token": token})
 
     except Exception as e:
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
@@ -178,23 +178,14 @@ def user_profile_update_user_sql(userId, data):
 def getprofile():
     try:
         if request.method == 'GET':
-            token = request.headers.get('Authorization')
-            if token is None:
-                raise Exception('token不存在，无法查询')
-
-            checkTokensReponseIfNot200(token, 'common')
-
-            # 经过checkTokensReponseIfNot200的检查，到这里我们可以保证token是存在的，且本次访问符合对应的权限
-            user = get_user_by_token(token)
+            user = check_user_before_request(request)
 
             # 格式化datetime
             if not isinstance(user['createTime'], str):
                 user['createTime'] = user['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
             response = {
-                "msg": "操作成功",
-                "roles": [user['roles']],
-                "data": {
+                "userInfo": {
                     "userId": user['id'],
                     "userName": user['userName'],
                     "email": user['email'],
@@ -214,8 +205,8 @@ def getprofile():
             if token is None:
                 raise Exception('token不存在，无法修改信息')
 
-            checkTokensReponseIfNot200(token, 'common')
-            user = get_user_by_token(token)
+            user = check_user_before_request(request)
+
             data = request.json
             user_profile_update_user_sql(user['id'], data)
 
@@ -248,13 +239,7 @@ def updatePwd():
         if 'oldPassword' not in data or 'newPassword' not in data:
             raise Exception('前端数据错误，不存在oldPassword或newPassword')
 
-        token = request.headers.get('Authorization')
-        if token is None:
-            raise Exception('token不存在')
-
-        checkTokensReponseIfNot200(token, 'common')
-
-        user = get_user_by_token(token)
+        user = check_user_before_request(request)
 
         res = authorize_userId_password(user['id'], data['oldPassword'])
         if res is None:
