@@ -132,7 +132,7 @@ def login():
 
 
 # 退出登录，本质上就是删除与用户建立的对话
-@bp.route('/logout', methods=['POST', 'GET'])
+@bp.route('/logout', methods=['GET'])
 def logout():
     try:
         token = request.headers.get('Authorization')

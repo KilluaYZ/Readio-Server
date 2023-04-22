@@ -15,18 +15,19 @@ def build_error_response(code=400, msg='操作失败'):
     return build_response(code, msg)
 
 
-def build_success_response(data=None):
-    return build_response(200, '操作成功', data)
+def build_success_response(data=None, msg='操作成功'):
+    return build_response(200, msg, data)
 
 
 def build_404_response():
     build_response(404, '不存在')
 
 
-def build_raw_response(response):
-    return json.dumps(response)
-
-
 def build_redirect_response(msg: str, url: str):
     url_data = dict({'url': url})
     return build_response(302, msg, url_data)
+
+
+#不建议用这个
+def build_raw_response(response):
+    return json.dumps(response)
