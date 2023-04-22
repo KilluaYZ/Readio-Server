@@ -1,28 +1,29 @@
-from flask import Flask, url_for
-from flask_cors import CORS  # 跨域
+import json
 # from dbtest.showdata10 import db # 引入其他蓝图
 import os
-import json
 from typing import Dict
 
-# from apscheduler.schedulers.background import BackgroundScheduler
+from flask import Flask, url_for
+from flask_cors import CORS  # 跨域
 
-from readio.database.init_db import init_db
-from readio.manage.tagManage import tag
-from readio.manage.postManage import posts
-from readio.auth.webAuth import webAuth
-# from readio.auth.appAuth import appAuth
-from readio.monitor.monitor import monitor
-from readio.manage.userManage import user
 # app
 from readio.auth import appAuth
-from readio.mainpage import appHomePage, appBookShelfPage
-
-from readio.manage.tagManage import tag as prod_tag
-from readio.manage.postManage import posts as prod_posts
+from readio.auth.webAuth import webAuth
 from readio.auth.webAuth import webAuth as prod_auth
-from readio.monitor.monitor import monitor as prod_monitor
+from readio.database.init_db import init_db
+from readio.mainpage import appHomePage, appBookShelfPage
+from readio.manage.postManage import posts
+from readio.manage.postManage import posts as prod_posts
+from readio.manage.tagManage import tag
+from readio.manage.tagManage import tag as prod_tag
+from readio.manage.userManage import user
 from readio.manage.userManage import user as prod_user
+# from readio.auth.appAuth import appAuth
+from readio.monitor.monitor import monitor
+from readio.monitor.monitor import monitor as prod_monitor
+
+
+# from apscheduler.schedulers.background import BackgroundScheduler
 
 
 # 创建flask app
@@ -79,7 +80,7 @@ def create_app():
     # 启动任务列表
     # scheduler.start()
     """ 测试 """
-    # app_test(app)
+    app_test(app)
 
     return app
 
@@ -103,7 +104,6 @@ def client_test(client, url_for_: str, method: str, headers, data=None) -> Dict[
     print('\t------------')
     print('\t[test url]:', url)
     if method == 'POST':
-        # headers.update(data)
         response = response2dict(client.post(url, headers=headers, json=data))
     elif method == 'GET':
         headers.update(data) if data is not None else None
@@ -119,10 +119,13 @@ def app_test(app):
     with app.test_request_context():
         # 使用测试客户端发送请求
         client = app.test_client()
-        """ test auth """
         headers = {
-            'Content-Type': 'application/json',
+            # 'Content-Type': 'application/json',
         }
+        """ test homepage """
+        # 获取url: /app/homepage
+        response = client_test(client, 'homepage.recommend', 'GET', headers)
+        """ test auth """
         user_data = {
             "phoneNumber": "19800380215",
             "passWord": "123456"
@@ -145,20 +148,12 @@ def app_test(app):
                                      headers=headers, data=user_data)
         read_info = dict()
         read_info['userId'] = uid if uid is not None else 3
-        read_info['bookId'] = 4
+        read_info['bookId'] = 7
         read_info['progress'] = 3
         # print(read_info)
         # add
-        # client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
+        client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
         # update
-        # client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
+        client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
         # del
-        # client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)
-
-        """ test homepage """
-        # # 获取url: /app/homepage
-        # url_homeapge = url_for('homepage.recommend')
-        # # 使用测试客户端发送请求
-        # client = app.test_client()
-        # response = client.get(url_homeapge)
-        # assert response.status_code == 200
+        client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)
