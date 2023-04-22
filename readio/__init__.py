@@ -22,8 +22,7 @@ from readio.manage.userManage import user as prod_user
 from readio.monitor.monitor import monitor
 from readio.monitor.monitor import monitor as prod_monitor
 
-
-# from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 
 
 # 创建flask app
@@ -68,17 +67,18 @@ def create_app():
         app.register_blueprint(prod_monitor, url_prefix='/prod-api/monitor')
         app.register_blueprint(prod_user, url_prefix='/prod-api/user')
 
-    # #配置定时任务
-    # from manage.userManage import checkSessionsAvailability
-    # scheduler = BackgroundScheduler()
-    # scheduler.add_job(func=checkSessionsAvailability,
-    #                 id='checkSessionsAvailability',
-    #                 trigger='interval',
-    #                 seconds=1800,
-    #                 replace_existing=True
-    # )
-    # 启动任务列表
-    # scheduler.start()
+    #配置定时任务
+    #该任务作用是每个一个小时检查一次user_token表，将超过15天未活动的token删掉
+    from manage.userManage import checkSessionsAvailability
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(func=checkSessionsAvailability,
+                    id='checkSessionsAvailability',
+                    trigger='interval',
+                    seconds=1800,
+                    replace_existing=True
+    )
+    #启动任务列表
+    scheduler.start()
     """ 测试 """
     app_test(app)
 

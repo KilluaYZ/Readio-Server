@@ -3,11 +3,11 @@ from flask import request
 from flask import Blueprint
 from flask import redirect
 from flask import url_for
-import inspect
 from werkzeug.security import check_password_hash, generate_password_hash
 from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
+import readio.utils.check as check
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('auth', __name__, url_prefix='/app/auth')
@@ -31,7 +31,7 @@ def authorize_phoneNumber_password(phoneNumber, passWord):
         print('验证成功')
         return user
     except Exception as e:
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         return None
@@ -53,7 +53,7 @@ def authorize_userId_password(userId, passWord):
         print('验证成功')
         return user
     except Exception as e:
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         return None
@@ -69,8 +69,7 @@ def register_user_sql(password, phoneNumber):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
 
@@ -87,8 +86,7 @@ def checkPhoneNumberIsUnique(phoneNumer):
         return False
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
 
@@ -105,8 +103,7 @@ def register():
         return build_success_response()
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         return build_error_response(msg='注册失败')
 
 
@@ -130,8 +127,7 @@ def login():
         return build_success_response({"msg": '操作成功', "token": token})
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         return build_error_response(msg='登录失败')
 
 
@@ -149,8 +145,7 @@ def logout():
         return build_success_response()
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         return build_error_response()
@@ -166,8 +161,7 @@ def user_profile_update_user_sql(userId, data):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         raise Exception('update_ser_sql错误')
@@ -213,8 +207,7 @@ def getprofile():
             return build_success_response()
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         return build_error_response()
 
 
@@ -226,7 +219,7 @@ def user_profile_update_user_pwd(uid, pwd):
         conn.commit()
         pooldb.close_conn(conn, cursor)
     except Exception as e:
-        print(e)
+        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         raise Exception(f'用户{uid}密码修改失败')
@@ -250,6 +243,5 @@ def updatePwd():
         return build_success_response()
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
+        check.printException(e)
         return build_error_response()
