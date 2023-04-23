@@ -43,6 +43,11 @@ def create_app():
         init_db()
         print("已初始化数据库")
 
+    @app.cli.command('app-test')
+    def app_test():
+        """进行test"""
+        app_test()
+
     FLASK_DEBUG = os.environ.get('FLASK_DEBUG')
     # 在开发环境中注册蓝图
     if FLASK_DEBUG:

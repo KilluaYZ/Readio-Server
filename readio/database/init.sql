@@ -85,18 +85,7 @@ create table user(
     createTime datetime not null  default CURRENT_TIMESTAMP 
 ); 
 
---用户会话表
-SET foreign_key_checks=0;
-DROP Table if EXISTS user_token;
-SET foreign_key_checks=1;
-create table user_token( 
-    uid int not null, 
-    token VARCHAR(128) not null, 
-    createTime datetime not null  default CURRENT_TIMESTAMP, 
-    visitTime datetime not null default CURRENT_TIMESTAMP , 
-    PRIMARY key(uid,token), 
-    foreign key(uid) references user(uid) on delete cascade on update cascade 
-); 
+
 --用户会话表触发器
 -- drop trigger if EXISTS user_token_insert_tri ; 
 -- create trigger user_token_insert_tri 
@@ -110,7 +99,28 @@ VALUES('admin','ruc',
 
 -------------------------------------------------------------------------
 
-load data local infile 'readio/database/data1.txt' into table posts 
-CHARACTER SET utf8  
-FIELDS TERMINATED BY ',' 
-(postID, postTitle, postContent,postAnswer,postTime);
+--文件
+SET foreign_key_checks=0;
+DROP Table if EXISTS file_info;
+SET foreign_key_checks=1;
+create table file_info(
+	id varchar(128) PRIMARY KEY,
+   name varchar(256) not null,
+   type varchar(64) ,
+   path varchar(128) not null,
+   createTime datetime DEFAULT CURRENT_TIMESTAMP,
+   visitTime datetime DEFAULT CURRENT_TIMESTAMP
+);
+
+--用户会话表
+SET foreign_key_checks=0;
+DROP Table if EXISTS user_token;
+SET foreign_key_checks=1;
+create table user_token(
+    uid int not null,
+    token VARCHAR(128) not null,
+    createTime datetime not null  default CURRENT_TIMESTAMP,
+    visitTime datetime not null default CURRENT_TIMESTAMP ,
+    PRIMARY key(uid,token),
+    foreign key(uid) references user(uid) on delete cascade on update cascade
+);
