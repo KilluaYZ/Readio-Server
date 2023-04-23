@@ -84,18 +84,22 @@ def app_test(app):
         #     # 'Content-Type': 'application/json',
         # }
         """ test homepage """
-        app_test_homepage(client)
+        # app_test_homepage(client)
         """ test auth """
         # app_test_auth(client)
         """ test bookshelf """
-        # app_test_bookshelf(client)
+        app_test_bookshelf(client)
 
 
 # 将 response 解析为可显示中文的 dict
 def response2dict(response):
     # response.data.decode('utf-8') <str>
     # json.loads(): JSON 格式的字符串转换为 dict、list、str 等
-    return json.loads(response.data.decode('utf-8'))
+    data_str = response.data.decode('utf-8')
+    try:
+        return json.loads(data_str)
+    except:
+        return data_str
 
 
 def json_append(json_old, key: str, value):
@@ -105,14 +109,14 @@ def json_append(json_old, key: str, value):
 
 
 # post return dict
-def client_test(client, url_for_: str, method: str, headers, data=None, print_info=True) -> Dict[str, any]:
+def client_test(client, url_for_: str, method: str, headers, json_data=None, print_info=True) -> Dict[str, any]:
     url = url_for(url_for_)
     print('\t------------') if print_info else None
     print('\t| [TEST INFO] url = ', url) if print_info else None
     if method == 'POST':
-        response = response2dict(client.post(url, headers=headers, json=data))
+        response = response2dict(client.post(url, headers=headers, json=json_data))
     elif method == 'GET':
-        headers.update(data) if data is not None else None
+        headers.update(json_data) if json_data is not None else None
         response = response2dict(client.get(url, headers=headers))
     else:
         response = 'test: No method!'
@@ -123,9 +127,10 @@ def client_test(client, url_for_: str, method: str, headers, data=None, print_in
 
 def app_test_homepage(client, headers=None):
     if headers is None:
-        headers = {"size": 3}
+        headers = {"size": 2}
     # 获取url: /app/homepage
     client_test(client, 'homepage.recommend', 'GET', headers)
+    # client_test(client, 'homepage.recommend', 'POST', headers)
 
 
 def app_test_auth(client, headers=None, user_data=None):
@@ -139,13 +144,13 @@ def app_test_auth(client, headers=None, user_data=None):
     # register
     # client_test(client, 'auth.register', 'POST', headers=headers, data=user_data)
     # login
-    resp_dict = client_test(client, 'auth.login', 'POST', headers=headers, data=user_data)
+    resp_dict = client_test(client, 'auth.login', 'POST', headers=headers, json_data=user_data)
     # profile
     token = resp_dict['data']['token']
     # print(f'[INFO] token = {token}')
     user_data['Authorization'] = token
     # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
-    profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, data=user_data)
+    profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, json_data=user_data)
     uid = profile_dict['data']['userInfo']['userId'] if profile_dict is not None else None
     # print(id_)
     return token
@@ -169,12 +174,11 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
         read_info['userId'] = uid
     # list
     client_test(client, 'bookshelf.index', 'GET', headers=headers)
-    read_info['bookId'] = 7
+    read_info['bookId'] = 6
     read_info['progress'] = 3
-    # print(read_info)
     # add
-    client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
+    client_test(client, 'bookshelf.add', 'POST', headers=headers, json_data=read_info)
     # update
-    client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
+    client_test(client, 'bookshelf.update', 'POST', headers=headers, json_data=read_info)
     # del
-    client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)
+    client_test(client, 'bookshelf.delete', 'POST', headers=headers, json_data=read_info)

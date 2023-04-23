@@ -47,6 +47,8 @@ def rec_sent(all_sent, size, user=None):
     return sentences
 
 
+# @bp.route('/homepage', methods=['GET', 'POST'])
+# @cross_origin(supports_credentials=True)
 @bp.route('/homepage', methods=['GET'])
 def recommend():
     """ 推荐好句 """
@@ -67,5 +69,6 @@ def recommend():
             print(e)
             response = build_error_response()
         return response
-    else:
-        return build_method_error_response(method='GET')
+    # else:
+    #     error_response = build_method_error_response(method='GET')
+    #     return error_response
