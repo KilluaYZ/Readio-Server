@@ -1,10 +1,12 @@
 import inspect
+import random
 
 from flask import Blueprint
 from flask import request
 
 import readio.database.connectPool
 from readio.utils.buildResponse import *
+from readio.utils.auth import check_user_before_request
 
 # 前缀为app的蓝图
 bp = Blueprint('homepage', __name__, url_prefix="/app")
@@ -27,13 +29,21 @@ def get_sentences():
         pooldb.close_conn(conn, cursor) if conn is not None else None
 
 
-def choose(all_sent, size=1):
+def rec_random(all_sent, size):
     sentences = list()
-    for i in range(size):
+    for _ in range(size):
+        i = random.randint(0, len(all_sent) - 1)  # 生成随机数
         sent = all_sent[i]
         sent["createTime"] = str(sent["createTime"])
-        sentences.append(sent)
-    # sentences = [for i in range(size)]
+        sentences.append(sent)  # 取出句子并添加到列表中
+    return sentences
+
+
+def rec_sent(all_sent, size, user=None):
+    if user is None:
+        sentences = rec_random(all_sent, size)
+    else:
+        sentences = rec_random(all_sent, size)
     return sentences
 
 
@@ -42,21 +52,20 @@ def recommend():
     """ 推荐好句 """
     if request.method == 'GET':
         try:
-            # sentences_all: [{},{}]
+            size = int(request.headers.get('size', 10))
+            user = check_user_before_request(request, raise_exc=False)
+            # sentences_all, sentences_rec -> [{},{}]
             sentences_all = get_sentences()
-            # print(type(sentences_all[0]), sentences_all[0])
-            # sentences_rec: [{},{}]
-            sentences_rec = choose(sentences_all, size=1)
-            # print(type(sentences_rec), sentences_rec)
+            sentences_rec = rec_sent(sentences_all, size, user)
             response = {
                 "size": len(sentences_rec),
                 "data": sentences_rec
             }
-            # response = build_raw_response(response)
             response = build_success_response(response)
         except Exception as e:
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response()
-        # print(type(response), response)
         return response
+    else:
+        return build_method_error_response(method='GET')

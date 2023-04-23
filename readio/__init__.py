@@ -58,22 +58,37 @@ def create_app():
         app.register_blueprint(prod_auth, url_prefix='/prod-api/auth')
         app.register_blueprint(prod_monitor, url_prefix='/prod-api/monitor')
 
-    #配置定时任务
-    #该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改
+    # 配置定时任务
+    # 该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改
     from readio.manage.userManage import checkSessionsAvailability
     scheduler = BackgroundScheduler()
     scheduler.add_job(func=checkSessionsAvailability,
-                    id='checkSessionsAvailability',
-                    trigger='interval',
-                    seconds=3600,
-                    replace_existing=True
-    )
-    #启动任务列表
+                      id='checkSessionsAvailability',
+                      trigger='interval',
+                      seconds=3600,
+                      replace_existing=True
+                      )
+    # 启动任务列表
     scheduler.start()
     """ 测试 """
-    app_test(app)
+    # app_test(app)
 
     return app
+
+
+def app_test(app):
+    with app.test_request_context():
+        # 使用测试客户端发送请求
+        client = app.test_client()
+        # headers = {
+        #     # 'Content-Type': 'application/json',
+        # }
+        """ test homepage """
+        app_test_homepage(client)
+        """ test auth """
+        # app_test_auth(client)
+        """ test bookshelf """
+        # app_test_bookshelf(client)
 
 
 # 将 response 解析为可显示中文的 dict
@@ -90,10 +105,10 @@ def json_append(json_old, key: str, value):
 
 
 # post return dict
-def client_test(client, url_for_: str, method: str, headers, data=None) -> Dict[str, any]:
+def client_test(client, url_for_: str, method: str, headers, data=None, print_info=True) -> Dict[str, any]:
     url = url_for(url_for_)
-    print('\t------------')
-    print('\t[test url]:', url)
+    print('\t------------') if print_info else None
+    print('\t| [TEST INFO] url = ', url) if print_info else None
     if method == 'POST':
         response = response2dict(client.post(url, headers=headers, json=data))
     elif method == 'GET':
@@ -101,52 +116,65 @@ def client_test(client, url_for_: str, method: str, headers, data=None) -> Dict[
         response = response2dict(client.get(url, headers=headers))
     else:
         response = 'test: No method!'
-    print("\t[client get]:", type(response), response)
-    print('\t------------')
+    print("\t| [TEST INFO] client get:", type(response), "\n\t| ", response) if print_info else None
+    print('\t------------') if print_info else None
     return response
 
 
-def app_test(app):
-    with app.test_request_context():
-        # 使用测试客户端发送请求
-        client = app.test_client()
-        headers = {
-            # 'Content-Type': 'application/json',
-        }
-        """ test homepage """
-        # 获取url: /app/homepage
-        response = client_test(client, 'homepage.recommend', 'GET', headers)
-        """ test auth """
+def app_test_homepage(client, headers=None):
+    if headers is None:
+        headers = {"size": 3}
+    # 获取url: /app/homepage
+    client_test(client, 'homepage.recommend', 'GET', headers)
+
+
+def app_test_auth(client, headers=None, user_data=None):
+    if headers is None:
+        headers = {}
+    if user_data is None:
         user_data = {
             "phoneNumber": "19800380215",
             "passWord": "123456"
         }
-        # register
-        # client_test(client, url_for_='auth.register', method='POST', data=user_data)
-        # login
-        resp_dict = client_test(client, url_for_='auth.login', method='POST', headers=headers, data=user_data)
-        # profile
-        # token = resp_dict.get('token', None)
-        token = resp_dict['data']['token']
-        print(f'[INFO] token = {token}')
-        user_data['Authorization'] = token
-        # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
-        profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, data=user_data)
-        uid = profile_dict['data']['userInfo']['userId'] if profile_dict is not None else None
-        # print(id_)
+    # register
+    # client_test(client, 'auth.register', 'POST', headers=headers, data=user_data)
+    # login
+    resp_dict = client_test(client, 'auth.login', 'POST', headers=headers, data=user_data)
+    # profile
+    token = resp_dict['data']['token']
+    # print(f'[INFO] token = {token}')
+    user_data['Authorization'] = token
+    # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
+    profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, data=user_data)
+    uid = profile_dict['data']['userInfo']['userId'] if profile_dict is not None else None
+    # print(id_)
+    return token
 
-        """ test bookshelf """
-        # index
-        bookshelf_dict = client_test(client, url_for_='bookshelf.index', method='GET',
-                                     headers=headers, data=user_data)
-        read_info = dict()
-        read_info['userId'] = uid if uid is not None else 3
-        read_info['bookId'] = 7
-        read_info['progress'] = 3
-        # print(read_info)
-        # add
-        client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
-        # update
-        client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
-        # del
-        client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)
+
+def app_test_bookshelf(client, login_data: Dict = None, headers=None):
+    if login_data is None:
+        login_data = {
+            "phoneNumber": "19800380215",
+            "passWord": "123456"
+        }
+    read_info = dict()
+    if headers is None:
+        headers = {}
+        # login to get token
+        resp_dict = client_test(client, 'auth.login', 'POST', headers, login_data, print_info=False)
+        token = resp_dict['data']['token']
+        headers['Authorization'] = token
+        profile_dict = client_test(client, 'auth.profile', 'GET', headers, print_info=False)
+        uid = profile_dict['data']['userInfo']['userId']
+        read_info['userId'] = uid
+    # list
+    client_test(client, 'bookshelf.index', 'GET', headers=headers)
+    read_info['bookId'] = 7
+    read_info['progress'] = 3
+    # print(read_info)
+    # add
+    client_test(client, 'bookshelf.add', 'POST', headers=headers, data=read_info)
+    # update
+    client_test(client, 'bookshelf.update', 'POST', headers=headers, data=read_info)
+    # del
+    client_test(client, 'bookshelf.delete', 'POST', headers=headers, data=read_info)

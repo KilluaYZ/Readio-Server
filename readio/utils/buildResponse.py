@@ -24,10 +24,16 @@ def build_404_response():
 
 
 def build_redirect_response(msg: str, url: str):
-    url_data = dict({'url': url})
+    url_data = dict({'Location': url})
     return build_response(302, msg, url_data)
 
 
-#不建议用这个
+def build_method_error_response(code=405, msg='Method Not Allowed', method=None):
+    if method is None:
+        method = 'Please check the api'
+    return build_response(code, msg, method)
+
+
+# 不建议用这个
 def build_raw_response(response):
     return json.dumps(response)

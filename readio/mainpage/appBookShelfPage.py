@@ -1,3 +1,6 @@
+"""
+书架页
+"""
 from flask import Blueprint
 from flask import request
 from flask import url_for
@@ -12,12 +15,6 @@ import readio.database.connectPool
 bp = Blueprint('bookshelf', __name__, url_prefix='/app/books')
 
 pooldb = readio.database.connectPool.pooldb
-
-
-# TODO:
-#  先获取用户信息，然后获取数据库中用户书架上的书，返回书籍信息（GET）；如果添加书籍，写入数据库（POST）
-#  之后是阅读详情页，点击书架上的书，获取数据库中上次读取的地方，以字为单位，返回书籍全部内容和偏移量
-#  考虑：设计新的页面，点击进去，展示书的详情信息（收藏、评论等）
 
 
 def get_books(user_id: int) -> List[Dict[str, str]]:
@@ -127,6 +124,8 @@ def add():
             add_book_sql(uid, bid, progress)
         response = build_redirect_response(f'添加书{bid}，重定向至书架页', url_for('bookshelf.index'))
         return response
+    else:
+        return build_method_error_response(method='POST')
 
 
 @bp.route('/update', methods=['POST'])
@@ -150,6 +149,8 @@ def update():
             add_book_sql(uid, bid, progress)
         response = build_redirect_response(f'书{bid}更新阅读进度，重定向至书架页', url_for('bookshelf.index'))
         return response
+    else:
+        return build_method_error_response(method='POST')
 
 
 @bp.route('/delete', methods=['POST'])
@@ -171,6 +172,8 @@ def delete():
             raise Exception('书架上没有这本书，无法删除')
         response = build_redirect_response(f'删除书{bid}，重定向至书架页', url_for('bookshelf.index'))
         return response
+    else:
+        return build_method_error_response(method='POST')
 
 
 @bp.route('/list', methods=['GET'])
@@ -187,3 +190,5 @@ def index():
         }
         response = build_success_response(data)
         return response
+    else:
+        return build_method_error_response(method='GET')

@@ -123,15 +123,19 @@ def checkTokensReponseIfNot200(token, roles):
         return build_error_response(500, '服务器内部发生错误，请联系管理员')
 
 
-def check_user_before_request(req):
+def check_user_before_request(req, raise_exc=True):
     """
     在请求前检查用户是否有访问该API的权限
     :param req: 请求对象，包含了HTTP请求头部信息
+    :param raise_exc: 是否抛出异常，默认为True
     :return: 返回具有该访问凭证的用户信息对象
     """
     token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
     if token is None:
-        raise Exception('访问凭证不存在，无法进行访问')
+        if raise_exc:
+            raise Exception('访问凭证不存在，无法进行访问')
+        else:
+            return None
 
     # 检查访问凭证是否有效
     checkTokensReponseIfNot200(token, 'common')
