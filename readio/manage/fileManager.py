@@ -21,13 +21,13 @@ bp = Blueprint('file', __name__, url_prefix='/file')
 pooldb = readio.database.connectPool.pooldb
 
 
-def getFileInfoById(id:str) -> dict:
+def getFileInfoById(id: str) -> dict:
     """
     通过id唯一地找到对应的文件信息
     """
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select * from file_info where id=%s',(id))
+        cursor.execute('select * from file_info where id=%s', (id))
         row = cursor.fetchone()
         return row
 
@@ -56,6 +56,7 @@ def getFilesInfoByNameExact(name: str) -> list:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
 
+
 def getFilesInfoByNameFuzzy(name: str) -> list:
     """
     通过文件名，找到文件名模糊匹配的文件信息列表
@@ -73,7 +74,8 @@ def getFilesInfoByNameFuzzy(name: str) -> list:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
 
-def loadFileByte(fileInfo:dict):
+
+def loadFileByte(fileInfo: dict):
     """
     fileInfo中要求存在id、type和path，函数会读入<path>/<id>.<type>的文件
     例如: path = /home  id = 123  type = jpg
@@ -84,14 +86,15 @@ def loadFileByte(fileInfo:dict):
         if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
             raise Exception('待读取fileInfo缺少path、type或id')
         content = None
-        with open(f"{os.path.join(fileInfo['path'],fileInfo['id'])}.{fileInfo['type']}", "rb") as f:
-               content = f.read()
+        with open(f"{os.path.join(fileInfo['path'], fileInfo['id'])}.{fileInfo['type']}", "rb") as f:
+            content = f.read()
         return content
 
     except Exception as e:
         check.printException(e)
 
-def loadFileClass(fileInfo:dict):
+
+def loadFileClass(fileInfo: dict) -> bytes:
     """
     fileInfo中要求存在id、type和path，函数会读入<path>/<id>.<type>的文件
     例如: path = /home  id = 123  type = jpg
@@ -106,7 +109,8 @@ def loadFileClass(fileInfo:dict):
     except Exception as e:
         check.printException(e)
 
-def saveFileByte(fileInfo:dict, content):
+
+def saveFileByte(fileInfo: dict, content):
     try:
         if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
             raise Exception('待写入fileInfo缺少path、type或id')
@@ -117,30 +121,64 @@ def saveFileByte(fileInfo:dict, content):
     except Exception as e:
         check.printException(e)
 
-def saveFileClass(fileInfo:dict, content):
+
+def saveFileClass(fileInfo: dict, content):
     try:
-        content = struct.pack("<4H2I",*content)
+        content = struct.pack("<4H2I", *content)
         saveFileByte(content)
     except Exception as e:
         check.printException(e)
 
-def getFilesByName():
+
+def getFilesByteByNameExact(name: str):
     """
-    通过Name获取文件
+    通过Name获取文件二进制（精确的）
+    """
+    res = []
+    fileInfoList = getFilesInfoByNameExact(name)
+    for fileInfo in fileInfoList:
+        fileBytes = loadFileByte(fileInfo)
+
+
+
+
+
+def getFilesByteByNameFuzzy():
+    """
+    通过Name获取文件二进制（模糊的）
     """
     pass
 
-def getFileById():
+
+def getFilesHandlerByNameExact(name: str):
     """
-    通过id拿到文件
+    通过Name获取文件句柄（精确的）
+    """
+
+
+def getFilesHandlerByNameFuzzy():
+    """
+    通过Name获取文件句柄（模糊的）
     """
     pass
+
+
+def getFileHandlerById():
+    """
+    通过id拿到文件句柄
+    """
+    pass
+
+
+def getFileByteById():
+    """
+    通过id拿到文件句柄
+    """
+    pass
+
 
 def saveFile():
     """
     储存文件
     """
     pass
-
-
-
