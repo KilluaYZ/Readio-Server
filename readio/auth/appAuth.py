@@ -69,9 +69,9 @@ def register_user_sql(password, phoneNumber):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+        raise e
 
 
 # 检查phoneNumber是不是唯一的，如果是则返回True，否则返回False
@@ -86,9 +86,9 @@ def checkPhoneNumberIsUnique(phoneNumer):
         return False
 
     except Exception as e:
-        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+        raise e
 
 
 @bp.route('/register', methods=['POST'])
@@ -161,10 +161,9 @@ def user_profile_update_user_sql(userId, data):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
-        raise Exception('update_ser_sql错误')
+        raise e
 
 
 # 获取用户详细信息

@@ -117,11 +117,20 @@ def __loadFileHandle(fileInfo: dict) -> BinaryIO:
     """
     通过fileInfo获取文件句柄
     """
-    if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
+    if 'id' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
         raise Exception('待读取fileInfo缺少path、type或id')
     fileHandler = open(
-        f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['path'], fileInfo['id']))}.{fileInfo['type']}", "rb")
+        f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}",
+        "rb")
     return fileHandler
+
+
+def __rmFile(fileInfo: dict):
+    """
+        通过fileInfo删除文件
+    """
+    os.remove(
+        f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}")
 
 
 def getFilesByteByNameExact(name: str) -> list:
@@ -228,7 +237,7 @@ def saveFileFromByte(fileInfo: dict, content):
 
 def saveFileFromClass(fileInfo: dict, content):
     content = struct.pack("<4H2I", *content)
-    saveFileFromByte(content)
+    saveFileFromByte(fileInfo, content)
 
 
 @bp.route('/file/downloadBinary', methods=['GET'])
@@ -281,6 +290,7 @@ def downloadFileBinary():
 
 def uploadFileBinarySql(fileInfo: dict):
     try:
+        conn, cursor = pooldb.get_conn()
         fileType = fileInfo['fileType'].lower()
         fileName = fileInfo['fileName']
         fileContent = base64.b64decode(fileInfo['fileContent'])
@@ -297,16 +307,15 @@ def uploadFileBinarySql(fileInfo: dict):
 
         saveFileFromByte(fileInfo)
 
-        conn, cursor = pooldb.get_conn()
         cursor.execute('insert into file_info(id,name,type,path) values(%s,%s,%s,%s)',
                        (fileId, fileName, fileType, fileInfo['filePath']))
         conn.commit()
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        check.printException(e)
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+        raise e
 
 
 @bp.route('/file/uploadBinary', methods=['POST'])
@@ -322,4 +331,38 @@ def uploadFileBinary():
 
     except Exception as e:
         check.printException(e)
-        build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+
+
+def delFileSql(fileInfo: dict):
+    try:
+        conn, cursor = pooldb.get_conn()
+
+        __rmFile(fileInfo)
+
+        cursor.execute('delete from file_info where id = %s',
+                       (fileInfo['fileId']))
+        conn.commit()
+        pooldb.close_conn(conn, cursor)
+
+    except Exception as e:
+        if conn is not None:
+            pooldb.close_conn(conn, cursor)
+        raise e
+
+
+@bp.route('/file/delete', methods=['GET'])
+def deleteFile():
+    try:
+        data = request.args
+        if 'fileId' not in data:
+            return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
+
+        fileInfo = getFileByteById(data['fileId'])
+        __rmFile(fileInfo)
+
+        return build_success_response()
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
