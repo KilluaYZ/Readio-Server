@@ -41,12 +41,6 @@ def create_app():
     def init_db_command():
         """删除现有的所有数据，并新建关系表"""
         init_db()
-        print("已初始化数据库")
-
-    @app.cli.command('app-test')
-    def app_test():
-        """进行test"""
-        app_test()
 
     FLASK_DEBUG = os.environ.get('FLASK_DEBUG')
     # 在开发环境中注册蓝图
@@ -76,7 +70,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
-    # app_test(app)
+    app_test(app)
 
     return app
 

@@ -109,6 +109,21 @@ def loadFileClass(fileInfo: dict) -> bytes:
     except Exception as e:
         check.printException(e)
 
+def loadFileHandle(fileInfo: dict):
+    """
+    通过fileInfo获取文件句柄
+    """
+    try:
+        if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
+            raise Exception('待读取fileInfo缺少path、type或id')
+        content = None
+        with open(f"{os.path.join(fileInfo['path'], fileInfo['id'])}.{fileInfo['type']}", "rb") as f:
+            content = f.read()
+        return content
+
+    except Exception as e:
+        check.printException(e)
+
 
 def saveFileByte(fileInfo: dict, content):
     try:
@@ -137,14 +152,19 @@ def getFilesByteByNameExact(name: str):
     res = []
     fileInfoList = getFilesInfoByNameExact(name)
     for fileInfo in fileInfoList:
-        fileBytes = loadFileByte(fileInfo)
+        res.append(loadFileByte(fileInfo))
+    return res
 
 
-def getFilesByteByNameFuzzy():
+def getFilesByteByNameFuzzy(name: str):
     """
     通过Name获取文件二进制（模糊的）
     """
-    pass
+    res = []
+    fileInfoList = getFilesInfoByNameFuzzy(name)
+    for fileInfo in fileInfoList:
+        res.append(loadFileByte(fileInfo))
+    return res
 
 
 def getFilesHandlerByNameExact(name: str):
