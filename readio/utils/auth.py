@@ -7,6 +7,8 @@ import random
 from typing import Dict, Union
 from werkzeug.security import check_password_hash, generate_password_hash
 import readio.database.connectPool
+from readio.utils.check import printException
+from readio.utils.myExceptions import NetworkException
 
 global pooldb
 pooldb = readio.database.connectPool.pooldb
@@ -76,52 +78,42 @@ def get_user_by_token(token) -> Dict[str, Union[int, str]]:
         raise Exception('会话不存在')
 
 
-def checkTokens(token, roles):
-    try:
-        if token is None:
-            return 404
-
-        # print('token=',token)
-        user = get_user_by_token(token)
-        if not user:
-            # 查无此人
-            return 404
-
-        if roles == 'admin':
-            if user['roles'] != 'admin':
-                # 没有权限
-                return 403
-        elif roles == 'manager':
-            if user['roles'] not in ['admin', 'manager']:
-                # 没有权限
-                return 403
-        elif roles == 'common':
-            if user['roles'] not in ['admin', 'manager', 'common']:
-                return 403
-        else:
-            # 未知roles
-            return 500
-
-        update_token_visit_time(token)
-        # 有对应权限,放行
-        return 200
-
-    except Exception as e:
-        print(e)
-        # 运行时错误
+def checkTokensGetState(token, roles):
+    if token is None:
+        raise Exception(404)
+    # print('token=',token)
+    user = get_user_by_token(token)
+    if not user:
+        # 查无此人
+        return 404
+    if roles == 'admin':
+        if user['roles'] != 'admin':
+            # 没有权限
+            return 403
+    elif roles == 'manager':
+        if user['roles'] not in ['admin', 'manager']:
+            # 没有权限
+            return 403
+    elif roles == 'common':
+        if user['roles'] not in ['admin', 'manager', 'common']:
+            return 403
+    else:
+        # 未知roles
         return 500
+    update_token_visit_time(token)
+    # 有对应权限,放行
+    return 200
 
 
 # 检查Token和权限，如果不是200就直接返回到客户端
 def checkTokensReponseIfNot200(token, roles):
-    state = checkTokens(token, roles)
+    state = checkTokensGetState(token, roles)
     if state == 404:
-        return build_error_response(400, '会话未建立，请重新登录')
+        raise NetworkException(400, '会话未建立，请重新登录')
     elif state == 403:
-        return build_error_response(403, '您没有该操作的权限，请联系管理员')
+        raise NetworkException(403, '您没有该操作的权限，请联系管理员')
     elif state == 500:
-        return build_error_response(500, '服务器内部发生错误，请联系管理员')
-
+        raise NetworkException(500, '服务器内部发生错误，请联系管理员')
 
 def check_user_before_request(req, raise_exc=True):
     """
@@ -130,20 +122,23 @@ def check_user_before_request(req, raise_exc=True):
     :param raise_exc: 是否抛出异常，默认为True
     :return: 返回具有该访问凭证的用户信息对象
     """
-    token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
-    if token is None:
-        if raise_exc:
-            raise Exception('访问凭证不存在，无法进行访问')
-        else:
-            return None
+    try:
+        token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
+        if token is None:
+            if raise_exc:
+                raise Exception('访问凭证不存在，无法进行访问')
+            else:
+                return None
 
-    # 检查访问凭证是否有效
-    checkTokensReponseIfNot200(token, 'common')
+        # 检查访问凭证是否有效
+        checkTokensReponseIfNot200(token, 'common')
 
-    # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
-    user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
-    return user
+        # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
+        user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
+        return user
 
+    except NetworkException as e:
+        build_error_response(code=e.code, msg=e.msg)
 
 def random_gen_str(strlen=14) -> str:
     char_list = 'qwertyuiopasdfghjklzxcvbnm1234567890QWERTYUIOPASDFGHJKLZXCVBNM_'
@@ -151,7 +146,6 @@ def random_gen_str(strlen=14) -> str:
     for _ in range(strlen):
         res += char_list[random.randint(0, len(char_list) - 1)]
     return res
-
 
 def random_gen_username():
     return random_gen_str()

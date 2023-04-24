@@ -10,7 +10,7 @@ from readio.utils.buildResponse import *
 from readio.utils.check import is_number
 from readio.manage.tagManage import query_sql, update_sql
 from readio.auth.routerdata import *
-from readio.utils.auth import build_token, get_user_by_token, build_session, update_token_visit_time, checkTokens
+from readio.utils.auth import build_token, get_user_by_token, build_session, update_token_visit_time, checkTokensGetState
 
 # conndb = Conndb(cursor_mode='dict')
 webAuth = Blueprint('/auth/web', __name__)
@@ -147,7 +147,7 @@ def getInfo():
         if token is None:
             raise Exception('token不存在，无法查询')
 
-        state = checkTokens(token, 'common')
+        state = checkTokensGetState(token, 'common')
         if state == 404:
             return build_error_response(400, '会话未建立，请重新登录')
         elif state == 403:
@@ -244,7 +244,7 @@ def getprofile():
             if token is None:
                 raise Exception('token不存在，无法查询')
 
-            state = checkTokens(token, 'common')
+            state = checkTokensGetState(token, 'common')
             if state == 404:
                 return build_error_response(400, '会话未建立，请重新登录')
             elif state == 403:
@@ -289,7 +289,7 @@ def getprofile():
             if token is None:
                 raise Exception('token不存在，无法修改信息')
 
-            state = checkTokens(token, 'common')
+            state = checkTokensGetState(token, 'common')
             if state == 404:
                 return build_error_response(400, '会话未建立，请重新登录')
             elif state == 403:
@@ -334,7 +334,7 @@ def updatePwd():
         if token is None:
             raise Exception('token不存在')
 
-        state = checkTokens(token, 'common')
+        state = checkTokensGetState(token, 'common')
         if state == 404:
             return build_error_response(400, '会话未建立，请重新登录')
         elif state == 403:

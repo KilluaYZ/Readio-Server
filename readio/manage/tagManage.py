@@ -7,7 +7,7 @@ import inspect
 
 from readio.utils.buildResponse import build_response,build_success_response,build_error_response
 from readio.utils.check import is_number
-from readio.utils.auth import checkTokens
+from readio.utils.auth import checkTokensGetState
 # from database.connect import Conndb
  
 tag = Blueprint('tag', __name__)
@@ -132,7 +132,7 @@ def check_tagParentName(tagParentName,tagClass):
 @tag.route('/add', methods=['POST'])
 def addTag():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'tagger')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'tagger')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -219,7 +219,7 @@ def del_tag_sql(tagName):
 @tag.route('/del', methods=['POST'])
 def delTag():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'tagger')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'tagger')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -338,7 +338,7 @@ def update_tag_sql(data):
 @tag.route('/update', methods=['POST'])
 def updateTag():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'tagger')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'tagger')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -384,7 +384,7 @@ def updateTag():
 @tag.route('/get', methods=['POST'])
 def getTag():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'common')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'common')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:

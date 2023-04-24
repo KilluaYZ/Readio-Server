@@ -11,7 +11,7 @@ from readio.utils.buildResponse import *
 from readio.utils.check import is_number
 
 monitor = Blueprint('monitor', __name__)
-from readio.utils.auth import get_user_by_token, checkTokens
+from readio.utils.auth import get_user_by_token, checkTokensGetState
 
 
 def get_host_ip():
@@ -28,7 +28,7 @@ def get_host_ip():
 @monitor.route('/server', methods=['GET'])
 def getPlantformInfo():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'), 'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400, '会话未建立，请重新登录')
         elif state == 403:

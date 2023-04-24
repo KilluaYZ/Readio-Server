@@ -9,7 +9,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from readio.utils.buildResponse import *
 from readio.utils.check import is_number
-from readio.utils.auth import checkTokens
+from readio.utils.auth import checkTokensGetState
 # conndb = Conndb(cursor_mode='dict')
 user = Blueprint('user', __name__)
 
@@ -56,7 +56,7 @@ def query_user_sql(queryParam):
 @user.route('/list', methods=['POST'])
 def userList():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -149,7 +149,7 @@ def add_user_sql(data):
 @user.route('/add', methods=['POST'])
 def addUser():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -209,7 +209,7 @@ def user_manage_update_user_sql(data):
 @user.route('/update', methods=['POST'])
 def userUpdate():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -233,7 +233,7 @@ def userUpdate():
 @user.route('/get', methods=['POST'])
 def getUser():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -268,7 +268,7 @@ def getUser():
 @user.route('/online/list', methods=['GET'])
 def getOnlineUser():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -303,7 +303,7 @@ def getOnlineUser():
 @user.route('/online/forceLogout', methods=['POST'])
 def forceLogout():    
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -334,7 +334,7 @@ from readio.auth.webAuth import user_profile_update_user_pwd
 @user.route('/resetPwd', methods=['POST'])
 def resetPwd():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
@@ -374,7 +374,7 @@ def user_manage_del_user(uid):
 @user.route('/del', methods=['POST'])
 def updatePwd():
     try:
-        state = checkTokens(request.cookies.get('Admin-Token'),'admin')
+        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
         if state == 404:
             return build_error_response(400,'会话未建立，请重新登录')
         elif state == 403:
