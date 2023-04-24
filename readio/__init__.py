@@ -70,7 +70,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
-    app_test(app)
+    # app_test(app)
 
     return app
 

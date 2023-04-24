@@ -3,7 +3,9 @@
 """
 import base64
 import functools
+import platform
 import struct
+import sys
 from typing import BinaryIO
 
 from flask import request
@@ -21,6 +23,11 @@ import readio.utils.check as check
 bp = Blueprint('file', __name__, url_prefix='/file')
 
 pooldb = readio.database.connectPool.pooldb
+
+BASE_FILE_STORE_DIR = './readio_server_runtime_data'
+PICTURE_TYPES = ['jpeg', 'jpg', 'png', 'tif', 'gif', 'bmp', 'svg']
+BOOK_TYPES = ['txt', 'pdf', 'mobi', 'epub']
+
 
 def __getFileInfoById(id: str) -> dict:
     """
@@ -83,14 +90,15 @@ def __loadFileByte(fileInfo: dict):
     /home/123.jpg
     返回的是byte
     """
-    if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
+    if 'id' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
         raise Exception('待读取fileInfo缺少path、type或id')
     content = None
-    with open(f"{os.path.join(fileInfo['path'], fileInfo['id'])}.{fileInfo['type']}", "rb") as f:
+    with open(
+            f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}",
+            "rb") as f:
         content = f.read()
 
     return content
-
 
 
 def __loadFileClass(fileInfo: dict) -> bytes:
@@ -111,7 +119,8 @@ def __loadFileHandle(fileInfo: dict) -> BinaryIO:
     """
     if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
         raise Exception('待读取fileInfo缺少path、type或id')
-    fileHandler = open(f"{os.path.join(fileInfo['path'], fileInfo['id'])}.{fileInfo['type']}", "rb")
+    fileHandler = open(
+        f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['path'], fileInfo['id']))}.{fileInfo['type']}", "rb")
     return fileHandler
 
 
@@ -158,6 +167,7 @@ def getFilesHandlerByNameFuzzy(name: str) -> list:
         res.append(__loadFileHandle(fileInfo))
     return res
 
+
 def getClassFileByNameExact(name: str) -> list:
     """
     通过Name获取二进制文件并将其转化为class（精确的）
@@ -167,6 +177,7 @@ def getClassFileByNameExact(name: str) -> list:
     for fileInfo in fileInfoList:
         res.append(__loadFileClass(fileInfo))
     return res
+
 
 def getClassFileByNameFuzzy(name: str) -> list:
     """
@@ -186,12 +197,14 @@ def getFileHandlerById(fileId: str) -> BinaryIO:
     fileInfo = __getFileInfoById(fileId)
     return __loadFileHandle(fileInfo)
 
+
 def getFileByteById(fileId: str):
     """
     通过id拿到文件二进制
     """
     fileInfo = __getFileInfoById(fileId)
     return __loadFileByte(fileInfo)
+
 
 def getClassFileByteById(fileId: str) -> bytes:
     """
@@ -200,10 +213,16 @@ def getClassFileByteById(fileId: str) -> bytes:
     fileInfo = __getFileInfoById(fileId)
     return __loadFileClass(fileInfo)
 
+
 def saveFileFromByte(fileInfo: dict, content):
     if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
         raise Exception('待写入fileInfo缺少path、type或id')
-    with open(f"{os.path.join(fileInfo['path'], fileInfo['id'])}.{fileInfo['type']}", "wb") as f:
+    dir_abs_path = os.path.join(BASE_FILE_STORE_DIR, fileInfo['path'])
+    if not os.path.exists(dir_abs_path):
+        os.makedirs(dir_abs_path)
+
+    with open(f"{os.path.join(dir_abs_path, fileInfo['id'])}.{fileInfo['type']}",
+              "wb") as f:
         f.write(content)
 
 
@@ -246,7 +265,6 @@ def downloadFileBinary():
                     "fileId": fileInfo['fileId'],
                     "fileName": fileInfo['name'],
                     "fileType": fileInfo['type'],
-                    "fileContentEncodeing": "base64",
                     "fileContent": base64.b64encode(fileContent)
                 }
                 response.append(singleFileResponse)
@@ -260,49 +278,47 @@ def downloadFileBinary():
         check.printException(e)
         build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
-@bp.route('/file/uploadBinary', methods=['GET'])
+
+def uploadFileBinarySql(fileInfo: dict):
+    try:
+        fileType = fileInfo['fileType'].lower()
+        fileName = fileInfo['fileName']
+        fileContent = base64.b64decode(fileInfo['fileContent'])
+        fileId = hashlib.sha256(fileContent)
+
+        if 'filePath' not in fileInfo:
+            if fileType in PICTURE_TYPES:
+                filePath = 'pic'
+            elif fileType in BOOK_TYPES:
+                filePath = 'book'
+            else:
+                filePath = 'default'
+            fileInfo['filePath'] = filePath
+
+        saveFileFromByte(fileInfo)
+
+        conn, cursor = pooldb.get_conn()
+        cursor.execute('insert into file_info(id,name,type,path) values(%s,%s,%s,%s)',
+                       (fileId, fileName, fileType, fileInfo['filePath']))
+        conn.commit()
+        pooldb.close_conn(conn, cursor)
+
+    except Exception as e:
+        check.printException(e)
+        if conn is not None:
+            pooldb.close_conn(conn, cursor)
+
+
+@bp.route('/file/uploadBinary', methods=['POST'])
 def uploadFileBinary():
     try:
-        data = request.args
-        if 'fileId' in data and 'fileName' in data:
-            return build_error_response(code=400, msg='不能同时指定文件Id和Name')
+        data = request.json
+        if 'fileName' not in data or 'fileType' not in data or 'fileContent' not in data:
+            return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
 
-        elif 'fileId' in data:
-            fileId = data['fileId']
-            fileInfo = __getFileInfoById(fileId)
-            fileContent = getFileByteById(fileId)
-            response = {
-                "fileId": fileInfo['fileId'],
-                "fileName": fileInfo['name'],
-                "fileType": fileInfo['type'],
-                "fileContentEncodeing": "base64",
-                "fileContent": base64.b64encode(fileContent)
-            }
-            return build_success_response(data=response, msg='获取成功')
+        uploadFileBinarySql(data)
 
-        elif 'fileName' in data:
-            fileName = data['fileName']
-            if 'mode' in data and data['mode'] == 'exact':
-                fileInfoList = __getFilesInfoByNameExact(fileName)
-            else:
-                fileInfoList = __getFilesInfoByNameFuzzy(fileName)
-
-            response = []
-            for fileInfo in fileInfoList:
-                fileContent = getFileByteById(fileInfo)
-                singleFileResponse = {
-                    "fileId": fileInfo['fileId'],
-                    "fileName": fileInfo['name'],
-                    "fileType": fileInfo['type'],
-                    "fileContentEncodeing": "base64",
-                    "fileContent": base64.b64encode(fileContent)
-                }
-                response.append(singleFileResponse)
-
-            return build_success_response(data=response, msg='获取成功')
-
-        else:
-            return build_error_response(code=404, msg='资源不存在')
+        return build_success_response()
 
     except Exception as e:
         check.printException(e)
