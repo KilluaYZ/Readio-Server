@@ -140,9 +140,6 @@ def getFilesByteByNameExact(name: str):
         fileBytes = loadFileByte(fileInfo)
 
 
-
-
-
 def getFilesByteByNameFuzzy():
     """
     通过Name获取文件二进制（模糊的）
