@@ -10,6 +10,7 @@ from typing import List, Dict
 from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
 import readio.database.connectPool
+from readio.utils.myExceptions import NetworkException
 
 # 前缀为app的蓝图
 bp = Blueprint('bookshelf', __name__, url_prefix='/app/books')
@@ -155,6 +156,9 @@ def update():
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response(msg=str(e))
+        # check_user_before_request会抛出NetworkException，这是自定义的Exception，用于构造error_reponse
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
         return response
     # else:
     #     return build_method_error_response(method='POST')
@@ -183,6 +187,8 @@ def delete():
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response(msg=str(e))
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
         return response
     # else:
     #     return build_method_error_response(method='POST')
@@ -206,6 +212,8 @@ def index():
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response()
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
         return response
     # else:
     #     return build_method_error_response(method='GET')

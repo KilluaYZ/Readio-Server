@@ -259,3 +259,51 @@ def downloadFileBinary():
     except Exception as e:
         check.printException(e)
         build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+
+@bp.route('/file/uploadBinary', methods=['GET'])
+def uploadFileBinary():
+    try:
+        data = request.args
+        if 'fileId' in data and 'fileName' in data:
+            return build_error_response(code=400, msg='不能同时指定文件Id和Name')
+
+        elif 'fileId' in data:
+            fileId = data['fileId']
+            fileInfo = __getFileInfoById(fileId)
+            fileContent = getFileByteById(fileId)
+            response = {
+                "fileId": fileInfo['fileId'],
+                "fileName": fileInfo['name'],
+                "fileType": fileInfo['type'],
+                "fileContentEncodeing": "base64",
+                "fileContent": base64.b64encode(fileContent)
+            }
+            return build_success_response(data=response, msg='获取成功')
+
+        elif 'fileName' in data:
+            fileName = data['fileName']
+            if 'mode' in data and data['mode'] == 'exact':
+                fileInfoList = __getFilesInfoByNameExact(fileName)
+            else:
+                fileInfoList = __getFilesInfoByNameFuzzy(fileName)
+
+            response = []
+            for fileInfo in fileInfoList:
+                fileContent = getFileByteById(fileInfo)
+                singleFileResponse = {
+                    "fileId": fileInfo['fileId'],
+                    "fileName": fileInfo['name'],
+                    "fileType": fileInfo['type'],
+                    "fileContentEncodeing": "base64",
+                    "fileContent": base64.b64encode(fileContent)
+                }
+                response.append(singleFileResponse)
+
+            return build_success_response(data=response, msg='获取成功')
+
+        else:
+            return build_error_response(code=404, msg='资源不存在')
+
+    except Exception as e:
+        check.printException(e)
+        build_error_response(code=500, msg='服务器内部错误，无法获取该资源')

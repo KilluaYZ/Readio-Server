@@ -122,23 +122,19 @@ def check_user_before_request(req, raise_exc=True):
     :param raise_exc: 是否抛出异常，默认为True
     :return: 返回具有该访问凭证的用户信息对象
     """
-    try:
-        token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
-        if token is None:
-            if raise_exc:
-                raise Exception('访问凭证不存在，无法进行访问')
-            else:
-                return None
+    token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
+    if token is None:
+        if raise_exc:
+            raise Exception('访问凭证不存在，无法进行访问')
+        else:
+            return None
 
-        # 检查访问凭证是否有效
-        checkTokensReponseIfNot200(token, 'common')
+    # 检查访问凭证是否有效
+    checkTokensReponseIfNot200(token, 'common')
 
-        # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
-        user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
-        return user
-
-    except NetworkException as e:
-        build_error_response(code=e.code, msg=e.msg)
+    # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
+    user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
+    return user
 
 def random_gen_str(strlen=14) -> str:
     char_list = 'qwertyuiopasdfghjklzxcvbnm1234567890QWERTYUIOPASDFGHJKLZXCVBNM_'

@@ -209,6 +209,8 @@ def profile():
     except Exception as e:
         check.printException(e)
         return build_error_response()
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
 
 def user_profile_update_user_pwd(uid, pwd):
@@ -245,3 +247,6 @@ def updatePwd():
     except Exception as e:
         check.printException(e)
         return build_error_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
