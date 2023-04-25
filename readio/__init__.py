@@ -9,18 +9,10 @@ from flask_cors import CORS  # 跨域
 # app
 from readio.auth import appAuth
 from readio.auth.webAuth import webAuth
-from readio.auth.webAuth import webAuth as prod_auth
 from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage
-# from readio.manage.postManage import posts
-# from readio.manage.postManage import posts as prod_posts
-# from readio.manage.tagManage import tag
-# from readio.manage.tagManage import tag as prod_tag
-# from readio.manage.userManage import user
-# from readio.manage.userManage import user as prod_user
-# from readio.auth.appAuth import appAuth
 from readio.monitor.monitor import monitor
-from readio.monitor.monitor import monitor as prod_monitor
+from readio.utils import fileManager
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -41,21 +33,13 @@ def create_app():
     def init_db_command():
         """删除现有的所有数据，并新建关系表"""
         init_db()
-
-    FLASK_DEBUG = os.environ.get('FLASK_DEBUG')
-    # 在开发环境中注册蓝图
-    if FLASK_DEBUG:
-        print('当前服务器在开发环境下运行')
-        app.register_blueprint(webAuth, url_prefix='/auth/web')
-        app.register_blueprint(monitor, url_prefix='/monitor')
-        app.register_blueprint(appAuth.bp)
-        app.register_blueprint(appHomePage.bp)
-        app.register_blueprint(appBookShelfPage.bp)
-    # 生产环境蓝图注册
-    else:
-        print('当前服务器在生产环境下运行')
-        app.register_blueprint(prod_auth, url_prefix='/prod-api/auth')
-        app.register_blueprint(prod_monitor, url_prefix='/prod-api/monitor')
+   
+    app.register_blueprint(webAuth, url_prefix='/auth/web')
+    app.register_blueprint(monitor, url_prefix='/monitor')
+    app.register_blueprint(appAuth.bp)
+    app.register_blueprint(appHomePage.bp)
+    app.register_blueprint(appBookShelfPage.bp)
+    app.register_blueprint(fileManager.bp)
 
     # 配置定时任务
     # 该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改

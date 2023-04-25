@@ -124,7 +124,7 @@ def login():
         token = build_session(user['id'])
         print('[DEBUG] get token, token = ', token)
         # tokenList.append(token)
-        return build_success_response({"msg": '操作成功', "token": token})
+        return build_success_response({"token": token})
 
     except Exception as e:
         check.printException(e)
