@@ -35,10 +35,9 @@ def __getFileInfoById(id: str) -> dict:
     """
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select * from file_info where id=%s', (id))
+        cursor.execute('select * from file_info where fileId=%s', (id))
         row = cursor.fetchone()
         return row
-
     except Exception as e:
         check.printException(e)
 
@@ -53,7 +52,7 @@ def __getFilesInfoByNameExact(name: str) -> list:
     """
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select * from file_info where name=%s', (name))
+        cursor.execute('select * from file_info where fileName=%s', (name))
         row = cursor.fetchone()
         return row
 
@@ -71,7 +70,7 @@ def __getFilesInfoByNameFuzzy(name: str) -> list:
     """
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select * from file_info where name LIKE %s', (f'%{name}%'))
+        cursor.execute('select * from file_info where fileName LIKE %s', (f'%{name}%'))
         row = cursor.fetchone()
         return row
 
@@ -90,14 +89,12 @@ def __loadFileByte(fileInfo: dict):
     /home/123.jpg
     返回的是byte
     """
-    if 'id' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
+    if 'fileId' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
         raise Exception('待读取fileInfo缺少path、type或id')
-    content = None
     with open(
             f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}",
             "rb") as f:
         content = f.read()
-
     return content
 
 
@@ -117,7 +114,7 @@ def __loadFileHandle(fileInfo: dict) -> BinaryIO:
     """
     通过fileInfo获取文件句柄
     """
-    if 'id' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
+    if 'fileId' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
         raise Exception('待读取fileInfo缺少path、type或id')
     fileHandler = open(
         f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}",
@@ -224,13 +221,13 @@ def getClassFileByteById(fileId: str) -> bytes:
 
 
 def saveFileFromByte(fileInfo: dict, content):
-    if 'id' not in fileInfo or 'path' not in fileInfo or 'type' not in fileInfo:
+    if 'fileId' not in fileInfo or 'filePath' not in fileInfo or 'fileType' not in fileInfo:
         raise Exception('待写入fileInfo缺少path、type或id')
-    dir_abs_path = os.path.join(BASE_FILE_STORE_DIR, fileInfo['path'])
+    dir_abs_path = os.path.join(BASE_FILE_STORE_DIR, fileInfo['filePath'])
+    # dir_abs_path = BASE_FILE_STORE_DIR + '/' + fileInfo['filePath']
     if not os.path.exists(dir_abs_path):
         os.makedirs(dir_abs_path)
-
-    with open(f"{os.path.join(dir_abs_path, fileInfo['id'])}.{fileInfo['type']}",
+    with open(f"{os.path.join(dir_abs_path, fileInfo['fileId'])}.{fileInfo['fileType']}",
               "wb") as f:
         f.write(content)
 
@@ -240,7 +237,7 @@ def saveFileFromClass(fileInfo: dict, content):
     saveFileFromByte(fileInfo, content)
 
 
-@bp.route('/file/downloadBinary', methods=['GET'])
+@bp.route('/downloadBinary', methods=['GET'])
 def downloadFileBinary():
     try:
         data = request.args
@@ -250,13 +247,14 @@ def downloadFileBinary():
         elif 'fileId' in data:
             fileId = data['fileId']
             fileInfo = __getFileInfoById(fileId)
+            print("fileInfo = ", fileInfo)
             fileContent = getFileByteById(fileId)
+
             response = {
                 "fileId": fileInfo['fileId'],
-                "fileName": fileInfo['name'],
-                "fileType": fileInfo['type'],
-                "fileContentEncodeing": "base64",
-                "fileContent": base64.b64encode(fileContent)
+                "fileName": fileInfo['fileName'],
+                "fileType": fileInfo['fileType'],
+                "fileContent": f'data:image/{fileInfo["fileType"]};base64,{str(base64.b64encode(fileContent))}'
             }
             return build_success_response(data=response, msg='获取成功')
 
@@ -272,8 +270,8 @@ def downloadFileBinary():
                 fileContent = getFileByteById(fileInfo)
                 singleFileResponse = {
                     "fileId": fileInfo['fileId'],
-                    "fileName": fileInfo['name'],
-                    "fileType": fileInfo['type'],
+                    "fileName": fileInfo['fileName'],
+                    "fileType": fileInfo['fileType'],
                     "fileContent": base64.b64encode(fileContent)
                 }
                 response.append(singleFileResponse)
@@ -285,16 +283,19 @@ def downloadFileBinary():
 
     except Exception as e:
         check.printException(e)
-        build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
 
 def uploadFileBinarySql(fileInfo: dict):
     try:
         conn, cursor = pooldb.get_conn()
         fileType = fileInfo['fileType'].lower()
+        fileInfo['fileType'] = fileInfo['fileType'].lower()
         fileName = fileInfo['fileName']
         fileContent = base64.b64decode(fileInfo['fileContent'])
-        fileId = hashlib.sha256(fileContent)
+        hashObj = hashlib.sha256()
+        hashObj.update(fileContent)
+        fileInfo['fileId'] = hashObj.hexdigest()
 
         if 'filePath' not in fileInfo:
             if fileType in PICTURE_TYPES:
@@ -305,10 +306,10 @@ def uploadFileBinarySql(fileInfo: dict):
                 filePath = 'default'
             fileInfo['filePath'] = filePath
 
-        saveFileFromByte(fileInfo)
+        saveFileFromByte(fileInfo, fileContent)
 
-        cursor.execute('insert into file_info(id,name,type,path) values(%s,%s,%s,%s)',
-                       (fileId, fileName, fileType, fileInfo['filePath']))
+        cursor.execute('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
+                       (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
         conn.commit()
         pooldb.close_conn(conn, cursor)
 
@@ -318,10 +319,11 @@ def uploadFileBinarySql(fileInfo: dict):
         raise e
 
 
-@bp.route('/file/uploadBinary', methods=['POST'])
+@bp.route('/uploadBinary', methods=['POST'])
 def uploadFileBinary():
     try:
         data = request.json
+        # print(f'[DEBUG] {data}')
         if 'fileName' not in data or 'fileType' not in data or 'fileContent' not in data:
             return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
 
@@ -340,7 +342,7 @@ def delFileSql(fileInfo: dict):
 
         __rmFile(fileInfo)
 
-        cursor.execute('delete from file_info where id = %s',
+        cursor.execute('delete from file_info where fileId = %s',
                        (fileInfo['fileId']))
         conn.commit()
         pooldb.close_conn(conn, cursor)
@@ -351,7 +353,7 @@ def delFileSql(fileInfo: dict):
         raise e
 
 
-@bp.route('/file/delete', methods=['GET'])
+@bp.route('/delete', methods=['GET'])
 def deleteFile():
     try:
         data = request.args
@@ -362,6 +364,44 @@ def deleteFile():
         __rmFile(fileInfo)
 
         return build_success_response()
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+
+
+def __get_res_info_by_type_sql(type=None):
+    try:
+        conn, cursor = pooldb.get_conn()
+        if type is None:
+            cursor.execute('select * from file_info')
+
+        else:
+            cursor.execute('select * from file_info where fileType = %s', type)
+
+        rows = cursor.fetchall()
+        return rows
+    except Exception as e:
+        raise e
+
+    finally:
+        if conn is not None:
+            pooldb.close_conn(conn, cursor)
+
+
+@bp.route('/getResInfo', methods=['GET'])
+def getResInfo():
+    try:
+        data = request.args
+        fileType = None
+        if 'fileType' in data:
+            fileType = data['fileType']
+        rows = __get_res_info_by_type_sql(fileType)
+        for i in range(len(rows)):
+            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d')
+            rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d')
+
+        return build_success_response(rows)
 
     except Exception as e:
         check.printException(e)

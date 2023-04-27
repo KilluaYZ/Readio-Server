@@ -14,7 +14,6 @@ bp = Blueprint('auth', __name__, url_prefix='/app/auth')
 
 pooldb = readio.database.connectPool.pooldb
 
-
 def authorize_phoneNumber_password(phoneNumber, passWord):
     try:
         conn, cursor = pooldb.get_conn()

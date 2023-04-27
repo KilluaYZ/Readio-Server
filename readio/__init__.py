@@ -13,7 +13,7 @@ from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage
 from readio.monitor.monitor import monitor
 from readio.utils import fileManager
-
+from readio.workspage import worksManage
 from apscheduler.schedulers.background import BackgroundScheduler
 
 
@@ -40,6 +40,7 @@ def create_app():
     app.register_blueprint(appHomePage.bp)
     app.register_blueprint(appBookShelfPage.bp)
     app.register_blueprint(fileManager.bp)
+    app.register_blueprint(worksManage.bp)
 
     # 配置定时任务
     # 该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改
