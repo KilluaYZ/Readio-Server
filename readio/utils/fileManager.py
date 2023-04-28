@@ -254,7 +254,8 @@ def downloadFileBinary():
                 "fileId": fileInfo['fileId'],
                 "fileName": fileInfo['fileName'],
                 "fileType": fileInfo['fileType'],
-                "fileContent": f'data:image/{fileInfo["fileType"]};base64,{str(base64.b64encode(fileContent))}'
+                # "fileContent": f'data:image/{fileInfo["fileType"]};base64,{str(base64.b64encode(fileContent))}'
+                "fileContent": str(base64.b64encode(fileContent))
             }
             return build_success_response(data=response, msg='获取成功')
 
@@ -285,6 +286,37 @@ def downloadFileBinary():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
+
+@bp.route('/getFileBinaryById', methods=['GET'])
+def get_file_binary_by_id():
+    try:
+        data = request.args
+        if 'fileId' not in data:
+           raise NetworkException(code=400, msg='不能同时指定文件Id和Name')
+
+        fileId = data['fileId']
+        fileInfo = __getFileInfoById(fileId)
+        if fileInfo is None:
+            raise  NetworkException(code=404, msg='资源不存在')
+        print("fileInfo = ", fileInfo)
+        fileContentHandle = getFileHandlerById(fileId)
+        if fileContentHandle is None:
+            raise Exception("无法获取该文件的二进制数据")
+
+        # response = {
+        #     "fileId": fileInfo['fileId'],
+        #     "fileName": fileInfo['fileName'],
+        #     "fileType": fileInfo['fileType'],
+        #     "fileContent": f'data:image/{fileInfo["fileType"]};base64,{str(base64.b64encode(fileContent))}'
+        # }
+        # return build_success_response(data=response, msg='获取成功')
+        return send_file(fileContentHandle, fileInfo['fileType'], download_name=f"{fileInfo['fileName']}.{fileInfo['fileType']}")
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
 def uploadFileBinarySql(fileInfo: dict):
     try:
@@ -326,6 +358,8 @@ def uploadFileBinary():
         # print(f'[DEBUG] {data}')
         if 'fileName' not in data or 'fileType' not in data or 'fileContent' not in data:
             return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
+
+        print(f'[DEBUG] fileContent = {data["fileContent"][:50]}')
 
         uploadFileBinarySql(data)
 
