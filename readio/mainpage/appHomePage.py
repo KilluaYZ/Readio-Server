@@ -7,6 +7,8 @@ from flask import request
 import readio.database.connectPool
 from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
+from readio.utils.myExceptions import NetworkException
+from readio.utils.buildSQL import execute_sql_query
 
 # 前缀为app的蓝图
 bp = Blueprint('homepage', __name__, url_prefix="/app")
@@ -15,18 +17,9 @@ pooldb = readio.database.connectPool.pooldb
 
 
 def get_sentences():
-    conn, cursor = pooldb.get_conn()
-    try:
-        cursor.execute("select * "
-                       "from sentences")
-        sentences = cursor.fetchall()
-    except:
-        print("ERROR! Can't get sentences.")
-        return None
-    else:
-        return sentences
-    finally:
-        pooldb.close_conn(conn, cursor) if conn is not None else None
+    get_sql = "select * from sentences"
+    sentences = execute_sql_query(pooldb, get_sql, ())
+    return sentences
 
 
 def rec_random(all_sent, size):
@@ -47,8 +40,6 @@ def rec_sent(all_sent, size, user=None):
     return sentences
 
 
-# @bp.route('/homepage', methods=['GET', 'POST'])
-# @cross_origin(supports_credentials=True)
 @bp.route('/homepage', methods=['GET'])
 def recommend():
     """ 推荐好句 """
@@ -64,11 +55,10 @@ def recommend():
                 "data": sentences_rec
             }
             response = build_success_response(response)
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
         except Exception as e:
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
-            response = build_error_response()
+            response = build_error_response(msg=str(e))
         return response
-    # else:
-    #     error_response = build_method_error_response(method='GET')
-    #     return error_response

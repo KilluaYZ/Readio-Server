@@ -1,7 +1,7 @@
 import json
 # from dbtest.showdata10 import db # 引入其他蓝图
 import os
-from typing import Dict
+from typing import Dict, Tuple
 
 from flask import Flask, url_for
 from flask_cors import CORS  # 跨域
@@ -10,7 +10,7 @@ from flask_cors import CORS  # 跨域
 from readio.auth import appAuth
 from readio.auth.webAuth import webAuth
 from readio.database.init_db import init_db
-from readio.mainpage import appHomePage, appBookShelfPage
+from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
 from readio.monitor.monitor import monitor
 from readio.utils import fileManager
 from readio.workspage import worksManage
@@ -33,12 +33,13 @@ def create_app():
     def init_db_command():
         """删除现有的所有数据，并新建关系表"""
         init_db()
-   
+
     app.register_blueprint(webAuth, url_prefix='/auth/web')
     app.register_blueprint(monitor, url_prefix='/monitor')
     app.register_blueprint(appAuth.bp)
     app.register_blueprint(appHomePage.bp)
     app.register_blueprint(appBookShelfPage.bp)
+    app.register_blueprint(appBookDetailsPage.bp)
     app.register_blueprint(fileManager.bp)
     app.register_blueprint(worksManage.bp)
 
@@ -72,7 +73,70 @@ def app_test(app):
         """ test auth """
         # app_test_auth(client)
         """ test bookshelf """
-        app_test_bookshelf(client)
+        # app_test_bookshelf(client)
+        """ test book details"""
+        app_test_book_details(client)
+
+
+def app_test_book_details(client, login_data: Dict = None, headers=None):
+    if login_data is None:
+        login_data = {
+            "phoneNumber": "19800380215",
+            "passWord": "123456"
+        }
+    read_info = dict()
+    if headers is None:
+        headers = {}
+        # login to get token
+        resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
+        token = resp_dict['data']['token']
+        headers['Authorization'] = token
+        # get uid
+        # profile_dict = client_test(client, 'auth.profile', 'GET', headers, print_info=False)
+        # uid = profile_dict['data']['userInfo']['userId']
+        # read_info['userId'] = uid
+    # show
+    url_and_params = get_url('book_detail.index', book_id=6)
+    # print(url_and_params)
+    client_test(client, url_and_params, 'GET', headers=headers)
+
+    # client_test(client, ('book_detail.index', 'book_id', 6), 'GET', headers=headers)
+    # read_info['bookId'] = 6
+    # read_info['progress'] = 3
+    # add
+    # client_test(client, 'bookshelf.add', 'POST', headers=headers, json_data=read_info)
+    # update
+    # client_test(client, 'bookshelf.update', 'POST', headers=headers, json_data=read_info)
+    # del
+    # client_test(client, 'bookshelf.delete', 'POST', headers=headers, json_data=read_info)
+
+
+def app_test_bookshelf(client, login_data: Dict = None, headers=None):
+    if login_data is None:
+        login_data = {
+            "phoneNumber": "19800380215",
+            "passWord": "123456"
+        }
+    read_info = dict()
+    if headers is None:
+        headers = {}
+        # login to get token
+        resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
+        token = resp_dict['data']['token']
+        headers['Authorization'] = token
+        profile_dict = client_test(client, get_url('auth.profile'), 'GET', headers, print_info=False)
+        uid = profile_dict['data']['userInfo']['userId']
+        read_info['userId'] = uid
+    # list
+    client_test(client, get_url('bookshelf.index'), 'GET', headers=headers)
+    read_info['bookId'] = 6
+    read_info['progress'] = 3
+    # add
+    client_test(client, get_url('bookshelf.add'), 'POST', headers=headers, json_data=read_info)
+    # update
+    # client_test(client, get_url('bookshelf.update'), 'POST', headers=headers, json_data=read_info)
+    # del
+    client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
 
 
 # 将 response 解析为可显示中文的 dict
@@ -92,9 +156,20 @@ def json_append(json_old, key: str, value):
     return json.dumps(dict_json)
 
 
+def get_url(view_func_name: str, **kwargs) -> Tuple[str, dict]:
+    """
+    构造 URL 和查询参数，并返回二元组 (url, params)
+    """
+    url = url_for(view_func_name, **kwargs)
+    params = {}
+    return url, params
+
+
 # post return dict
-def client_test(client, url_for_: str, method: str, headers, json_data=None, print_info=True) -> Dict[str, any]:
-    url = url_for(url_for_)
+# def client_test(client, url_for_: str, method: str, headers, json_data=None, print_info=True) -> Dict[str, any]:
+def client_test(client, url_and_params: Tuple[str, dict],
+                method: str, headers, json_data=None, print_info=True) -> Dict[str, any]:
+    url, params = url_and_params
     print('\t------------') if print_info else None
     print('\t| [TEST INFO] url = ', url) if print_info else None
     if method == 'POST':
@@ -113,7 +188,9 @@ def app_test_homepage(client, headers=None):
     if headers is None:
         headers = {"size": 2}
     # 获取url: /app/homepage
-    client_test(client, 'homepage.recommend', 'GET', headers)
+    # homepage.recommend
+    url_and_params = get_url('homepage.recommend')
+    client_test(client, url_and_params, 'GET', headers=headers)
     # client_test(client, 'homepage.recommend', 'POST', headers)
 
 
@@ -126,43 +203,18 @@ def app_test_auth(client, headers=None, user_data=None):
             "passWord": "123456"
         }
     # register
-    # client_test(client, 'auth.register', 'POST', headers=headers, data=user_data)
+    # url_and_params = get_url('auth.register')
+    # client_test(client, url_and_params, 'POST', headers=headers, data=user_data)
     # login
-    resp_dict = client_test(client, 'auth.login', 'POST', headers=headers, json_data=user_data)
+    url_and_params = get_url('auth.login')
+    resp_dict = client_test(client, url_and_params, 'POST', headers=headers, json_data=user_data)
     # profile
     token = resp_dict['data']['token']
     # print(f'[INFO] token = {token}')
     user_data['Authorization'] = token
     # user_data['Authorization'] = 'a974075986a7519ddbeaff7dc3756c7b41a2db32'
-    profile_dict = client_test(client, 'auth.profile', 'GET', headers=headers, json_data=user_data)
+    url_and_params = get_url('auth.profile')
+    profile_dict = client_test(client, url_and_params, 'GET', headers=headers, json_data=user_data)
     uid = profile_dict['data']['userInfo']['userId'] if profile_dict is not None else None
     # print(id_)
     return token
-
-
-def app_test_bookshelf(client, login_data: Dict = None, headers=None):
-    if login_data is None:
-        login_data = {
-            "phoneNumber": "19800380215",
-            "passWord": "123456"
-        }
-    read_info = dict()
-    if headers is None:
-        headers = {}
-        # login to get token
-        resp_dict = client_test(client, 'auth.login', 'POST', headers, login_data, print_info=False)
-        token = resp_dict['data']['token']
-        headers['Authorization'] = token
-        profile_dict = client_test(client, 'auth.profile', 'GET', headers, print_info=False)
-        uid = profile_dict['data']['userInfo']['userId']
-        read_info['userId'] = uid
-    # list
-    client_test(client, 'bookshelf.index', 'GET', headers=headers)
-    read_info['bookId'] = 6
-    read_info['progress'] = 3
-    # add
-    client_test(client, 'bookshelf.add', 'POST', headers=headers, json_data=read_info)
-    # update
-    client_test(client, 'bookshelf.update', 'POST', headers=headers, json_data=read_info)
-    # del
-    client_test(client, 'bookshelf.delete', 'POST', headers=headers, json_data=read_info)

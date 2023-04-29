@@ -4,7 +4,7 @@ import hashlib
 import os
 import random
 
-from typing import Dict, Union
+from typing import Dict, Union, Optional
 from werkzeug.security import check_password_hash, generate_password_hash
 import readio.database.connectPool
 from readio.utils import check
@@ -116,12 +116,14 @@ def checkTokensReponseIfNot200(token, roles):
     elif state == 500:
         raise NetworkException(500, '服务器内部发生错误，请联系管理员')
 
-def check_user_before_request(req, raise_exc=True):
+
+def check_user_before_request(req, raise_exc=True) -> Optional[Dict[str, Union[int, str]]]:
     """
     在请求前检查用户是否有访问该API的权限
     :param req: 请求对象，包含了HTTP请求头部信息
     :param raise_exc: 是否抛出异常，默认为True
     :return: 返回具有该访问凭证的用户信息对象
+    :raises: Exception, 当访问凭证不存在或无效时，如果raise_exc=True就会抛出异常
     """
     token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
     if token is None:
@@ -137,12 +139,14 @@ def check_user_before_request(req, raise_exc=True):
     user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
     return user
 
+
 def random_gen_str(strlen=14) -> str:
     char_list = 'qwertyuiopasdfghjklzxcvbnm1234567890QWERTYUIOPASDFGHJKLZXCVBNM_'
     res = ''
     for _ in range(strlen):
         res += char_list[random.randint(0, len(char_list) - 1)]
     return res
+
 
 def random_gen_username():
     return random_gen_str()
