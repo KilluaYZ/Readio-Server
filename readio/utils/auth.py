@@ -128,7 +128,7 @@ def check_user_before_request(req, raise_exc=True) -> Optional[Dict[str, Union[i
     token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
     if token is None:
         if raise_exc:
-            raise Exception('访问凭证不存在，无法进行访问')
+            raise NetworkException(401, '访问凭证不存在，无法进行访问')
         else:
             return None
 

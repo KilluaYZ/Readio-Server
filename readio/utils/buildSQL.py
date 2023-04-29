@@ -30,6 +30,9 @@ def execute_sql_write(pooldb, sql: str, *args):
         # 执行SQL
         cursor.execute(sql, *args)
         conn.commit()
+        # 获取插入自增主键 ID
+        id_ = cursor.lastrowid
+        return id_
     except Exception as e:
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)

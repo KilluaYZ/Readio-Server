@@ -84,7 +84,6 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
             "phoneNumber": "19800380215",
             "passWord": "123456"
         }
-    read_info = dict()
     if headers is None:
         headers = {}
         # login to get token
@@ -96,9 +95,12 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         # uid = profile_dict['data']['userInfo']['userId']
         # read_info['userId'] = uid
     # show
-    url_and_params = get_url('book_detail.index', book_id=6)
-    # print(url_and_params)
+    url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
+    # add
+    comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
+    url_and_params = get_url('book_detail.add_comments', book_id=3)
+    # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
 
     # client_test(client, ('book_detail.index', 'book_id', 6), 'GET', headers=headers)
     # read_info['bookId'] = 6

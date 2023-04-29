@@ -60,9 +60,8 @@ def del_book_sql(uid, bid):
 def add():
     if request.method == 'POST':
         try:
-            check_user_before_request(request)
-            uid = request.json.get('userId')
-            bid = request.json.get('bookId')
+            user = check_user_before_request(request)
+            uid, bid = user['id'], request.json.get('bookId')
             progress = request.json.get('progress', 0)
 
             # uid bid 其中一个为空
@@ -89,9 +88,8 @@ def update():
     """ 更新阅读进度 """
     if request.method == 'POST':
         try:
-            check_user_before_request(request)
-            uid = request.json.get('userId')
-            bid = request.json.get('bookId')
+            user = check_user_before_request(request)
+            uid, bid = user['id'], request.json.get('bookId')
             progress = request.json.get('progress', 0)
 
             # uid bid 其中一个为空
@@ -121,20 +119,19 @@ def update():
 def delete():
     if request.method == 'POST':
         try:
-            check_user_before_request(request)
-            uid = request.json.get('userId')
-            bid = request.json.get('bookId')
+            user = check_user_before_request(request)
+            uid, bid = user['id'], request.json.get('bookId')
 
             # uid bid 其中一个为空
             if not all([uid, bid]):
-                raise Exception('userId 或 bookId 缺失')
+                raise NetworkException(400, 'userId 或 bookId 缺失')
 
             # 书架上已有
             if check_book_added(pooldb, uid, bid):
                 # 数据库中删除书籍信息
                 del_book_sql(uid, bid)
             else:
-                raise Exception(f'书架上没有书{bid}，无法删除')
+                raise NetworkException(400, f'书架上没有书{bid}，无法删除')
             response = build_redirect_response(f'删除书{bid}，重定向至书架页', url_for('bookshelf.index'))
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
