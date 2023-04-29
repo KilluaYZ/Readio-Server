@@ -21,7 +21,7 @@ pooldb = readio.database.connectPool.pooldb
 def random_get_pieces_brief_sql(size: int) -> list:
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select piecesId, serialId, title, userId, state, content, likes, views, shares from pieces')
+        cursor.execute('select piecesId, seriesId, title, userId, state, content, likes, views, shares from pieces')
         rows = cursor.fetchall()
         #随机从列表中抽取size个元素
         if size > len(rows):
@@ -41,7 +41,7 @@ def get_tags_by_seriesId_sql(seriesId:int) -> list:
         # print(f'[DEBUG] seriesId = {seriesId} type = {type(seriesId)}')
         conn, cursor = pooldb.get_conn()
         cursor.execute('select tags.tagId as tagId, tags.content as content, linkedTimes from tags, tag_series where '
-                       'tag_series.serialId = %s  and tag_series.tagId = tags.tagId', seriesId)
+                       'tag_series.seriesId = %s  and tag_series.tagId = tags.tagId', seriesId)
 
         rows = cursor.fetchall()
         # print(f'[DEBUG] rows = {rows}')
@@ -75,7 +75,7 @@ def get_bref():
             rows = random_get_pieces_brief_sql(size)
         #查找最热门的标签
         for i in range(len(rows)):
-            tag_list = get_tags_by_seriesId_sql(int(rows[i]['serialId']))
+            tag_list = get_tags_by_seriesId_sql(int(rows[i]['seriesId']))
             if(len(tag_list)):
                 max_linked_id = 0
                 max_linked_tag = None
@@ -96,8 +96,6 @@ def get_bref():
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
-
-
 
 
 @bp.route('/getSeriesBrief', methods=['GET'])
