@@ -4,7 +4,7 @@ from readio.utils.myExceptions import NetworkException
 
 
 # 读取数据库
-def execute_sql_query(pooldb, sql: str, *args) -> List[Dict]:
+def execute_sql_query(pooldb, sql: str, *args) -> List[dict]:
     """
     执行 SQL 查询并返回查询结果，结果以字典列表形式返回。
     """
@@ -15,6 +15,32 @@ def execute_sql_query(pooldb, sql: str, *args) -> List[Dict]:
         # 返回结果集
         results = cursor.fetchall()
         return results
+    except Exception as e:
+        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        raise e
+    finally:
+        # 关闭数据库连接和游标对象
+        pooldb.close_conn(conn, cursor) if conn is not None else None
+
+
+def execute_sql_query_one(pooldb, sql: str, *args) -> Dict:
+    """
+    执行 SQL 查询语句并返回单一结果。
+
+    :param pooldb: 数据库连接池对象。
+    :param sql: 要执行的 SQL 查询语句。
+    :param args: SQL 查询语句所需的参数，可变参数。
+    :return: 返回 SQL 查询结果中的第一条数据。
+    :raises Exception: 如果执行 SQL 查询失败，则抛出异常并终止程序运行。
+    """
+    conn, cursor = pooldb.get_conn()
+    try:
+        # 执行 SQL 查询
+        cursor.execute(sql, *args)
+        # 返回结果，仅一条
+        result = cursor.fetchone()
+        return result
     except Exception as e:
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)

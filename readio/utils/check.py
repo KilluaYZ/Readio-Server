@@ -101,3 +101,16 @@ def check_has_comment(pooldb, uid, cid):
         print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         raise Exception("Error occurred while checking the comment: " + str(e))
+
+
+def check_has_comment_for_book(pooldb, bid, cid):
+    """ 判断表 comment_book(bookId,commentId) 中该书 (bid) 是否有评论 (cid) """
+    try:
+        check_sql = "SELECT COUNT(*) FROM comment_book WHERE bookId=%s AND commentId=%s"
+        args = bid, cid
+        count = execute_sql_query(pooldb, check_sql, args)
+        return count[0]['COUNT(*)'] > 0
+    except Exception as e:
+        print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        raise Exception("Error occurred while checking the comment: " + str(e))

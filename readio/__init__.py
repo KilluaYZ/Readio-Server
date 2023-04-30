@@ -1,8 +1,9 @@
 import json
 # from dbtest.showdata10 import db # 引入其他蓝图
-import os
-from typing import Dict, Tuple
+import re
+from typing import Dict, Tuple, Optional
 
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, url_for
 from flask_cors import CORS  # 跨域
 
@@ -14,7 +15,6 @@ from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
 from readio.monitor.monitor import monitor
 from readio.utils import fileManager
 from readio.workspage import worksManage
-from apscheduler.schedulers.background import BackgroundScheduler
 
 
 # 创建flask app
@@ -90,19 +90,25 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
         token = resp_dict['data']['token']
         headers['Authorization'] = token
-    # show
+        headers['depth'] = 3
+    resp_dict = {}
+    # show book details
     url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
+    # show comment details
+    url_and_params = get_url('book_detail.index_comment', book_id=3, comment_id=1)
+    client_test(client, url_and_params, 'GET', headers=headers)
+
     # add
     # comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
     comment = {'content': '好言良劝增贤文', 'bookId': 3}
     url_and_params = get_url('book_detail.add_comments', book_id=3)
-    # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
+    # resp_dict = client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
     # del
-    comment_to_del = {'bookId': 3, 'commentId': 8}
+    comment_id = extract_number(resp_dict['msg']) if len(resp_dict) > 0 else 4
+    comment_to_del = {'bookId': 3, 'commentId': comment_id}
     url_and_params = get_url('book_detail.delete_comments', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment_to_del)
-
 
 
 def app_test_bookshelf(client, login_data: Dict = None, headers=None):
@@ -126,11 +132,26 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
     read_info['bookId'] = 6
     read_info['progress'] = 3
     # add
-    client_test(client, get_url('bookshelf.add'), 'POST', headers=headers, json_data=read_info)
+    # client_test(client, get_url('bookshelf.add'), 'POST', headers=headers, json_data=read_info)
     # update
     # client_test(client, get_url('bookshelf.update'), 'POST', headers=headers, json_data=read_info)
     # del
-    client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
+    # client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
+
+
+def extract_number(text: str, n: int = 1) -> Optional[int]:
+    """
+    从字符串中提取数字，返回第 n 个匹配到的数字。默认返回第一个数字。
+
+    :param text: 要提取数字的字符串。
+    :param n: 要返回的数字在所有匹配到的数字中的位置，从 1 开始计数。默认为 1。
+    :return: 返回指定位置的数字，类型为 int。如果没有找到数字，则返回 None。
+    """
+    pattern = r'\d+'
+    matches = re.findall(pattern, text)
+    if len(matches) == 0:
+        return None
+    return int(matches[n - 1]) if n <= len(matches) else None
 
 
 # 将 response 解析为可显示中文的 dict
@@ -154,7 +175,7 @@ def get_url(view_func_name: str, **kwargs) -> Tuple[str, dict]:
     """
     构造 URL 和查询参数，并返回二元组 (url, params)
     """
-    url = url_for(view_func_name, **kwargs)
+    url = url_for(view_func_name, **kwargs)  # _external=True
     params = {}
     return url, params
 
