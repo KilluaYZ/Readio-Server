@@ -83,34 +83,26 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         login_data = {
             "phoneNumber": "19800380215",
             "passWord": "123456"
-        }
+        }  # uid = 3
     if headers is None:
         headers = {}
         # login to get token
         resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
         token = resp_dict['data']['token']
         headers['Authorization'] = token
-        # get uid
-        # profile_dict = client_test(client, 'auth.profile', 'GET', headers, print_info=False)
-        # uid = profile_dict['data']['userInfo']['userId']
-        # read_info['userId'] = uid
     # show
     url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
     # add
-    comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
+    # comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
+    comment = {'content': '好言良劝增贤文', 'bookId': 3}
     url_and_params = get_url('book_detail.add_comments', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
-
-    # client_test(client, ('book_detail.index', 'book_id', 6), 'GET', headers=headers)
-    # read_info['bookId'] = 6
-    # read_info['progress'] = 3
-    # add
-    # client_test(client, 'bookshelf.add', 'POST', headers=headers, json_data=read_info)
-    # update
-    # client_test(client, 'bookshelf.update', 'POST', headers=headers, json_data=read_info)
     # del
-    # client_test(client, 'bookshelf.delete', 'POST', headers=headers, json_data=read_info)
+    comment_to_del = {'bookId': 3, 'commentId': 8}
+    url_and_params = get_url('book_detail.delete_comments', book_id=3)
+    # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment_to_del)
+
 
 
 def app_test_bookshelf(client, login_data: Dict = None, headers=None):

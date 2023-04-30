@@ -1,7 +1,7 @@
 import inspect
 
 import pymysql.cursors
-from readio.utils.buildSQL import execute_sql_query
+from readio.utils.executeSQL import execute_sql_query
 
 
 def printException(e):
@@ -77,28 +77,27 @@ def checkRequstIsNotNone(req: dict, keyName: str):
 def check_book_added(pooldb, uid, bid):
     """ 判断用户 uid 的书架是否有书籍 bid """
     try:
-        check_book_sql = "SELECT * FROM user_read_info WHERE userId=%s AND bookId=%s"
+        check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s"
         args = uid, bid
-        book = execute_sql_query(pooldb, check_book_sql, args)
-        return len(book) != 0
+        book_count = execute_sql_query(pooldb, check_book_sql, args)
+        # book_count = [{'COUNT(*)': 1}]
+        return book_count[0]['COUNT(*)'] > 0
     except pymysql.Error as e:
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         # raise
         raise Exception("Error occurred while checking book added: " + str(e))
 
-    # conn, cursor = pooldb.get_conn()
-    # try:
-    #     # 执行SQL查询，判断用户uid和书籍bid是否在表user_read_info中存在
-    #     cursor.execute("SELECT * FROM user_read_info WHERE userId=%s AND bookId=%s",
-    #                    (uid, bid))
-    #     book = cursor.fetchall()  # 获取查询结果集
-    #     return len(book) != 0
-    # except pymysql.Error as e:
-    #     print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-    #     print(e)
-    #     # raise
-    #     raise Exception("Error occurred while checking book added: " + str(e))
-    # finally:
-    #     # 关闭数据库连接和游标对象
-    #     pooldb.close_conn(conn, cursor) if conn is not None else None
+
+# 注意：这里未检查用户是否有凭证，可以配合使用 check_user_before_request
+def check_has_comment(pooldb, uid, cid):
+    """ 判断用户 uid 是否有评论 cid """
+    try:
+        check_comment_sql = "SELECT COUNT(*) FROM comments WHERE userId=%s AND commentId=%s"
+        args = uid, cid
+        comment_count = execute_sql_query(pooldb, check_comment_sql, args)
+        return comment_count[0]['COUNT(*)'] > 0
+    except Exception as e:
+        print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        raise Exception("Error occurred while checking the comment: " + str(e))

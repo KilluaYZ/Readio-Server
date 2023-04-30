@@ -8,7 +8,7 @@ import readio.database.connectPool
 from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
 from readio.utils.myExceptions import NetworkException
-from readio.utils.buildSQL import execute_sql_query
+from readio.utils.executeSQL import execute_sql_query
 
 # 前缀为app的蓝图
 bp = Blueprint('homepage', __name__, url_prefix="/app")

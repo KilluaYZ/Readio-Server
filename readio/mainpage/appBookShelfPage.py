@@ -12,7 +12,7 @@ from readio.utils.auth import check_user_before_request
 from readio.utils.check import check_book_added
 import readio.database.connectPool
 from readio.utils.myExceptions import NetworkException
-from readio.utils.buildSQL import execute_sql_write, execute_sql_query
+from readio.utils.executeSQL import execute_sql_write, execute_sql_query
 
 # 前缀为 app/books 的蓝图
 bp = Blueprint('bookshelf', __name__, url_prefix='/app/books')

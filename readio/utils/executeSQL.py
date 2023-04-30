@@ -1,5 +1,6 @@
 import inspect
-from typing import List, Dict
+from typing import List, Dict, Optional
+from readio.utils.myExceptions import NetworkException
 
 
 # 读取数据库
@@ -24,19 +25,30 @@ def execute_sql_query(pooldb, sql: str, *args) -> List[Dict]:
 
 
 # 写入数据库
-def execute_sql_write(pooldb, sql: str, *args):
+def execute_sql_write(pooldb, sql: str, *args) -> Optional[int]:
+    """
+    执行写入操作，并返回插入自增主键 ID。
+
+    :param pooldb: 连接池对象。
+    :param sql: SQL 语句。
+    :param args: SQL 参数。
+    :return: 如果是插入操作，返回插入记录的自增主键 ID；如果是更新或删除操作，返回 None。
+    :raises NetworkException: 如果执行 SQL 失败，将抛出此异常。
+    """
     conn, cursor = pooldb.get_conn()
     try:
-        # 执行SQL
+        # 执行 SQL
         cursor.execute(sql, *args)
         conn.commit()
         # 获取插入自增主键 ID
         id_ = cursor.lastrowid
         return id_
     except Exception as e:
+        # 发生错误，回滚事务并抛出异常
+        conn.rollback() if conn is not None else None
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
-        raise e
+        raise NetworkException(500, 'Database error: ' + str(e))
     finally:
         # 关闭数据库连接和游标对象
         pooldb.close_conn(conn, cursor) if conn is not None else None
