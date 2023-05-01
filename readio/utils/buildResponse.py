@@ -5,18 +5,18 @@ import json
 from flask import make_response
 
 
-def build_response(code: int, msg: str, data=None):
+def build_response(code: int, msg: str, data=None, length=0):
     if data is None:
         data = {}
-    return make_response(json.dumps({'code': code, 'msg': msg, 'data': data}), code)
+    return make_response(json.dumps({'code': code, 'msg': msg, 'data': data, 'length': length}))
 
 
 def build_error_response(code=400, msg='操作失败'):
     return build_response(code, msg)
 
 
-def build_success_response(data=None, msg='操作成功'):
-    return build_response(200, msg, data)
+def build_success_response(data=None, msg='操作成功', length=0):
+    return build_response(code=200, msg=msg, data=data, length=length)
 
 
 def build_404_response():

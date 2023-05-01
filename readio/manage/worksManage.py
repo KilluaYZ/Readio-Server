@@ -143,19 +143,20 @@ def get_pieces_detail():
         if piece is None:
             raise NetworkException(404, '该章节不存在')
         if 'createTime' in piece:
-            piece['createTime'] = piece['createTime'].strftime('%Y-%m-%d')
+            piece['createTime'] = piece['createTime'].strftime('%Y-%m-%d %H:%M:%S')
         if 'updateTime' in piece:
-            piece['updateTime'] = piece['updateTime'].strftime('%Y-%m-%d')
+            piece['updateTime'] = piece['updateTime'].strftime('%Y-%m-%d %H:%M:%S')
         tag_list = get_tags_by_seriesId_sql(piece['seriesId'])
         piece['tag'] = tag_list
 
         return build_success_response(piece)
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
-    except NetworkException as e:
-        return build_error_response(code=e.code, msg=e.msg)
+
 
 @bp.route('/getSeriesDetail', methods=['GET'])
 def get_series_detail():
@@ -188,15 +189,16 @@ def get_user_series_list():
         user = check_user_before_request(request)
         series_list = get_series_by_user_id(user['id'])
         for i in range(len(series_list)):
-            series_list[i]['createTime'] = series_list[i]['createTime'].strftime('%Y-%m-%d')
+            series_list[i]['createTime'] = series_list[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(series_list)
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
-    except NetworkException as e:
-        return build_error_response(code=e.code, msg=e.msg)
+
 
 @bp.route('/getUserPiecesList', methods=['GET'])
 def get_user_pieces_list():

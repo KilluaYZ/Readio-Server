@@ -312,11 +312,12 @@ def get_file_binary_by_id():
         # return build_success_response(data=response, msg='获取成功')
         return send_file(fileContentHandle, fileInfo['fileType'], download_name=f"{fileInfo['fileName']}.{fileInfo['fileType']}")
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
-    except NetworkException as e:
-        return build_error_response(code=e.code, msg=e.msg)
+
 
 def uploadFileBinarySql(fileInfo: dict):
     try:
@@ -432,8 +433,8 @@ def getResInfo():
             fileType = data['fileType']
         rows = __get_res_info_by_type_sql(fileType)
         for i in range(len(rows)):
-            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d')
-            rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d')
+            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
+            rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(rows)
 

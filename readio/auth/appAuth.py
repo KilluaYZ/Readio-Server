@@ -4,6 +4,8 @@ from flask import Blueprint
 from flask import redirect
 from flask import url_for
 from werkzeug.security import check_password_hash, generate_password_hash
+
+from readio.auth.routerdata import admin_router_data, common_router_data, manager_router_data
 from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
@@ -45,7 +47,7 @@ def authorize_userId_password(userId, passWord):
         if user is None:
             raise Exception('用户名不正确')
 
-        if not check_password_hash(user['password'], passWord):
+        if not check_password_hash(user['passWord'], passWord):
             raise Exception('密码不正确')
 
         # 都正确了，开始创建会话
@@ -186,7 +188,10 @@ def profile():
                     "createTime": user['createTime'],
                     "fansNum": 123,
                     "subscribeNum": 234,
-                    "hotNum": 678
+                    "hotNum": 678,
+                    "roles": [user['roles']],
+                    "permissions": ["*:*:*"],
+                    "roleGroup": USER_ROLE_MAP[user['roles']]
                 }
             }
 
@@ -204,11 +209,11 @@ def profile():
 
             return build_success_response()
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response()
-    except NetworkException as e:
-        return build_error_response(code=e.code, msg=e.msg)
 
 
 def user_profile_update_user_pwd(uid, pwd):
@@ -230,21 +235,41 @@ def updatePwd():
     try:
         data = request.json
         if 'oldPassword' not in data or 'newPassword' not in data:
-            raise Exception('前端数据错误，不存在oldPassword或newPassword')
+            raise NetworkException(400 ,'前端数据错误，不存在oldPassword或newPassword')
 
         user = check_user_before_request(request)
 
         res = authorize_userId_password(user['id'], data['oldPassword'])
         if res is None:
-            raise Exception('密码不正确')
+            raise NetworkException(400, '密码不正确')
 
         user_profile_update_user_pwd(user['id'], data['newPassword'])
 
         return build_success_response()
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(500, "服务器内部错误")
+
+
+@bp.route('/getRouters', methods=['GET'])
+def get_routers():
+    try:
+        user = check_user_before_request(request)
+        if user['roles'] == 'admin':
+            return build_success_response(admin_router_data)
+        elif user['roles'] == 'manager':
+            return build_success_response(manager_router_data)
+        elif user['roles'] == 'common':
+            return build_success_response(common_router_data)
+
+        return build_success_response(common_router_data)
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response()
 
-    except NetworkException as e:
-        return build_error_response(code=e.code, msg=e.msg)

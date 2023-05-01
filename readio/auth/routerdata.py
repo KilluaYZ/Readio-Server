@@ -1,4 +1,4 @@
-adminRouterData = [
+admin_router_data = [
     {
         "name": "System",
         "path": "/system",
@@ -102,22 +102,23 @@ adminRouterData = [
                 }
             },
         ]
-    },
-    {
-        "name": "MOOC数据库系统概论",
-        "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
-        "hidden": False,
-        "component": "Layout",
-        "meta": {
-            "title": "MOOC数据库系统概论",
-            "icon": "guide",
-            "noCache": False,
-            "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
-        }
     }
+    # ,
+    # {
+    #     "name": "MOOC数据库系统概论",
+    #     "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
+    #     "hidden": False,
+    #     "component": "Layout",
+    #     "meta": {
+    #         "title": "MOOC数据库系统概论",
+    #         "icon": "guide",
+    #         "noCache": False,
+    #         "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
+    #     }
+    # }
 ]
 
-taggerRouterData = [
+manager_router_data = [
     {
         "name": "System",
         "path": "/system",
@@ -169,22 +170,23 @@ taggerRouterData = [
                 }
             },
         ]
-    },
-    {
-        "name": "MOOC数据库系统概论",
-        "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
-        "hidden": False,
-        "component": "Layout",
-        "meta": {
-            "title": "MOOC数据库系统概论",
-            "icon": "guide",
-            "noCache": False,
-            "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
-        }
     }
+    # ,
+    # {
+    #     "name": "MOOC数据库系统概论",
+    #     "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
+    #     "hidden": False,
+    #     "component": "Layout",
+    #     "meta": {
+    #         "title": "MOOC数据库系统概论",
+    #         "icon": "guide",
+    #         "noCache": False,
+    #         "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
+    #     }
+    # }
 ]
 
-commonRouterData = [
+common_router_data = [
     {
         "name": "System",
         "path": "/system",
@@ -236,17 +238,18 @@ commonRouterData = [
                 }
             },
         ]
-    },
-    {
-        "name": "MOOC数据库系统概论",
-        "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
-        "hidden": False,
-        "component": "Layout",
-        "meta": {
-            "title": "MOOC数据库系统概论",
-            "icon": "guide",
-            "noCache": False,
-            "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
-        }
     }
+    # ,
+    # {
+    #     "name": "MOOC数据库系统概论",
+    #     "path": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_",
+    #     "hidden": False,
+    #     "component": "Layout",
+    #     "meta": {
+    #         "title": "MOOC数据库系统概论",
+    #         "icon": "guide",
+    #         "noCache": False,
+    #         "link": "https://www.icourse163.org/course/RUC-488001?from=searchPage&outVendor=zw_mooc_pcssjg_"
+    #     }
+    # }
 ]

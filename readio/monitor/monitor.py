@@ -7,8 +7,10 @@ import os
 import sys
 import inspect
 
+from readio.utils import check
 from readio.utils.buildResponse import *
-from readio.utils.check import is_number
+from readio.utils.auth import check_user_before_request
+from readio.utils.myExceptions import NetworkException
 
 monitor = Blueprint('monitor', __name__)
 from readio.utils.auth import get_user_by_token, checkTokensGetState
@@ -28,20 +30,7 @@ def get_host_ip():
 @monitor.route('/server', methods=['GET'])
 def getPlantformInfo():
     try:
-        state = checkTokensGetState(request.cookies.get('Admin-Token'), 'admin')
-        if state == 404:
-            return build_error_response(400, '会话未建立，请重新登录')
-        elif state == 403:
-            return build_error_response(403, '您没有该操作的权限，请联系管理员')
-        elif state == 500:
-            return build_error_response(500, '服务器内部发生错误，请联系管理员')
-
-        token = request.cookies.get('Admin-Token')
-        if token is None:
-            raise Exception('token不存在，无法查询')
-        user = get_user_by_token(token)
-        if user is None:
-            raise Exception('未登录无法查询')
+        check_user_before_request(request, "admin")
 
         cpu_used = cpu_percent(interval=2)
         cpu_free = 100.0 - cpu_used
@@ -68,7 +57,14 @@ def getPlantformInfo():
         }
         return build_success_response(res)
 
+
+    except NetworkException as e:
+
+        return build_error_response(code=e.code, msg=e.msg)
+
+
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
-        print(e)
-        return build_error_response()
+
+        check.printException(e)
+
+        return build_error_response(code=500, msg="服务器内部错误")

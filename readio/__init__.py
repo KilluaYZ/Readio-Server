@@ -9,12 +9,10 @@ from flask_cors import CORS  # 跨域
 
 # app
 from readio.auth import appAuth
-from readio.auth.webAuth import webAuth
 from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
 from readio.monitor.monitor import monitor
-from readio.utils import fileManager
-from readio.workspage import worksManage
+from readio.manage import fileManage, worksManage, userManage
 
 
 # 创建flask app
@@ -34,13 +32,13 @@ def create_app():
         """删除现有的所有数据，并新建关系表"""
         init_db()
 
-    app.register_blueprint(webAuth, url_prefix='/auth/web')
     app.register_blueprint(monitor, url_prefix='/monitor')
+    app.register_blueprint(userManage.bp)
     app.register_blueprint(appAuth.bp)
     app.register_blueprint(appHomePage.bp)
     app.register_blueprint(appBookShelfPage.bp)
     app.register_blueprint(appBookDetailsPage.bp)
-    app.register_blueprint(fileManager.bp)
+    app.register_blueprint(fileManage.bp)
     app.register_blueprint(worksManage.bp)
 
     # 配置定时任务

@@ -110,22 +110,25 @@ def checkTokensGetState(token, roles):
 def checkTokensReponseIfNot200(token, roles):
     state = checkTokensGetState(token, roles)
     if state == 404:
-        raise NetworkException(400, '会话未建立，请重新登录')
+        raise NetworkException(401, '会话已过期，请重新登录')
     elif state == 403:
         raise NetworkException(403, '您没有该操作的权限，请联系管理员')
     elif state == 500:
         raise NetworkException(500, '服务器内部发生错误，请联系管理员')
 
 
-def check_user_before_request(req, raise_exc=True) -> Optional[Dict[str, Union[int, str]]]:
+def check_user_before_request(req, raise_exc=True, roles='common') -> Optional[Dict[str, Union[int, str]]]:
     """
     在请求前检查用户是否有访问该API的权限
     :param req: 请求对象，包含了HTTP请求头部信息
     :param raise_exc: 是否抛出异常，默认为True
+    :param roles: 该请求的应有的权限
     :return: 返回具有该访问凭证的用户信息对象
     :raises: Exception, 当访问凭证不存在或无效时，如果raise_exc=True就会抛出异常
     """
     token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
+    if token is None:
+        token = req.cookies.get('Authorization')  # 如果在头部中找不到Authorization，则尝试在cookies中寻找
     if token is None:
         if raise_exc:
             raise NetworkException(401, '访问凭证不存在，无法进行访问')
@@ -133,7 +136,7 @@ def check_user_before_request(req, raise_exc=True) -> Optional[Dict[str, Union[i
             return None
 
     # 检查访问凭证是否有效
-    checkTokensReponseIfNot200(token, 'common')
+    checkTokensReponseIfNot200(token, roles)
 
     # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
     user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
@@ -165,3 +168,10 @@ def get_user_by_id(userId: int) -> dict:
     finally:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+
+
+USER_ROLE_MAP = {
+    "common": "普通用户",
+    "manager": "管理员",
+    "admin": "超级管理员"
+}
