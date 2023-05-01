@@ -5,6 +5,8 @@
 
 import inspect
 from typing import List
+from collections import deque
+import copy
 
 from flask import Blueprint
 from flask import request
@@ -13,7 +15,7 @@ from flask import url_for
 import readio.database.connectPool
 from readio.utils.auth import check_user_before_request
 from readio.utils.buildResponse import *
-from readio.utils.check import check_book_added, check_has_comment, check_has_comment_for_book
+from readio.utils.check import check_book_added, check_has_comment, check_has_comment_for_book, check_exist_comment
 from readio.utils.executeSQL import execute_sql_write, execute_sql_query, execute_sql_query_one
 from readio.utils.formatter import process_comment_time
 from readio.utils.myExceptions import NetworkException
@@ -78,7 +80,14 @@ def get_comment_replies_sql(comment_id: int) -> List[dict]:
     return comment_list
 
 
-def get_comment_tree(comment_id, depth):
+def get_comment_tree_recursive(comment_id: int, depth: int) -> List[dict]:
+    """
+    递归查询指定评论的子评论树
+
+    :param comment_id: 指定评论的 ID
+    :param depth: 查询深度，即子评论的层数
+    :return: 子评论树列表，每个元素为一个字典表示一个评论及其子评论
+    """
     if depth <= 0:
         return []
 
@@ -88,9 +97,9 @@ def get_comment_tree(comment_id, depth):
     comment_tree = []
     for reply in reply_list:
         reply_id = reply['commentId']
-        reply_comment = get_comment_sql(reply_id)
-        sub_tree = reply_comment
-        replies = get_comment_tree(reply_id, depth - 1)
+        reply_cmt = get_comment_sql(reply_id)
+        sub_tree = reply_cmt
+        replies = get_comment_tree_recursive(reply_id, depth - 1)
         sub_tree['size'] = len(replies)
         sub_tree['replies'] = replies
         comment_tree.append(sub_tree)
@@ -98,14 +107,39 @@ def get_comment_tree(comment_id, depth):
     return comment_tree
 
 
-def get_comment_details(comment_id, depth=3):
+def get_sub_comment_ids_stack(root_id: int) -> List[int]:
+    """
+    使用栈遍历获取指定评论的所有子评论 id
+
+    :param root_id: int, 指定评论的 id
+    :return: list[int], 所有子评论的 id 列表
+    """
+    # 创建一个栈，将待处理的评论 id 加入栈中
+    stack = [root_id]
+    # 存储所有子评论的 id
+    result = []
+
+    # 不断从栈中弹出评论 id 并处理，直到栈为空
+    while stack:
+        comment_id = stack.pop()  # 弹出最新加入栈中的评论 id
+        reply_list = get_comment_replies_sql(comment_id)  # 获取当前评论的所有子评论
+        for reply in reply_list:
+            reply_id = reply['commentId']  # 获取子评论的 id
+            stack.append(reply_id)  # 将子评论 id 加入栈中，以便后续处理
+            result.append(reply_id)  # 将子评论 id 加入结果列表中
+
+    return result
+
+
+def get_comment_details(comment_id, depth):
+    """ 获取评论详细信息，包括其子评论信息 """
     # 获取评论
     comment = get_comment_sql(comment_id)
 
     # 获取子评论列表
     sub_comment_list = []
     if depth > 0:
-        sub_comment_list = get_comment_tree(comment_id, depth - 1)
+        sub_comment_list = get_comment_tree_recursive(comment_id, depth - 1)
 
     # 组织结果
     details = comment
@@ -127,29 +161,60 @@ def add_comments_sql(uid: int, bid: int, content: str):
     return comment_id
 
 
-def del_comments_sql(uid: int, bid: int, cid: int):
+def reply_comment_sql(uid: int, parent_cid: int, content: str):
+    # 修改 comments 表
+    add_c_sql = 'insert into comments(userId, content,likes) values(%s,%s,%s)'
+    args = uid, content, 0  # tuple
+    comment_id = execute_sql_write(pooldb, add_c_sql, args)
+
+    # 修改 comment_replies 表
+    add_cb_sql = 'insert into comment_replies(parentId, commentId) values(%s,%s)'
+    args = parent_cid, comment_id
+    execute_sql_write(pooldb, add_cb_sql, args)
+    return comment_id
+
+
+def del_comments_sql(uid: int, cid: int):
     """
-    删除一条评论记录和与之相关的所有关联记录。
-    注意： 必须先删除 comment_book 表中的关联记录，再删除 comments 表中的评论记录
+    删除一条评论记录和与之相关的 comment_book 记录。
+    注意： 数据库 comment_book 表中设置了级联删除，仅需删除 comments 表中数据即可
 
     :param uid: 用户 ID。
-    :param bid: 书籍 ID。
     :param cid: 评论 ID。
 
     :return: None
     :raises NetworkException: 当执行 SQL 发生错误时，抛出此异常。
     """
-    # 删除 comment_book
-    del_cb_sql = "DELETE FROM comment_book WHERE bookId=%s AND commentId=%s"
-    cb_args = (bid, cid)
-    execute_sql_write(pooldb, del_cb_sql, cb_args)
-
     # 删除 comment
     del_c_sql = "DELETE FROM comments WHERE userId=%s AND commentId=%s"
     c_args = (uid, cid)
     execute_sql_write(pooldb, del_c_sql, c_args)
 
 
+def del_replies_sql(uid: int, cid: int):
+    """
+    删除一条回复记录和与之相关的 comment_replies 记录。
+    注意： 数据库 comment_replies 表中设置了级联删除，仅需删除 comments 表中数据即可
+
+    :param uid: 用户 ID。
+    :param cid: 评论 ID。
+
+    :return: None
+    :raises NetworkException: 当执行 SQL 发生错误时，抛出此异常。
+    """
+    # 获取所有子评论的 id
+    ids = get_sub_comment_ids_stack(cid)
+    # 加上该评论
+    ids.append(cid)
+
+    # 删除 comment
+    for cid in ids:
+        del_c_sql = "DELETE FROM comments WHERE userId=%s AND commentId=%s"
+        c_args = (uid, cid)
+        execute_sql_write(pooldb, del_c_sql, c_args)
+
+
+# 增加书本的评论
 @bp.route('/<int:book_id>/comments/add', methods=['POST'])
 def add_comments(book_id):
     if request.method == 'POST':
@@ -159,11 +224,8 @@ def add_comments(book_id):
             uid, bid = user['id'], request.json.get('bookId')
             content = request.json.get('content')
             # 检查 URL 与请求参数 book_id 是否一致
-            if str(bid) != str(book_id):
+            if bid is None or str(bid) != str(book_id):
                 raise NetworkException(400, 'Invalid book_id')
-            # uid bid 其中一个为空
-            if not all([uid, bid]):
-                raise NetworkException(400, 'userId 或 bookId 缺失')
             cid = add_comments_sql(uid, bid, content)
             url = url_for('book_detail.index', book_id=bid)
             response = build_redirect_response(f'添加评论 {cid} 成功，重定向至书籍详情页', url)
@@ -176,6 +238,34 @@ def add_comments(book_id):
         return response
 
 
+# 对他人的评论进行回复，可以是子评论的回复，所以不检查书籍下是否有该条评论
+@bp.route('/<int:book_id>/comment/reply', methods=['POST'])
+def reply_comment(book_id):
+    if request.method == 'POST':
+        try:
+            user = check_user_before_request(request)
+            uid = user['id']
+            bid, cid = request.json.get('bookId'), request.json.get('commentId')
+            content = request.json.get('content')
+            # 检查 URL 与请求参数是否一致，且保证非空
+            if bid is None or str(bid) != str(book_id):
+                raise NetworkException(400, 'Invalid book_id or comment_id')
+            # 检查是否有这条评论
+            if check_exist_comment(pooldb, cid):
+                reply_comment_sql(uid, cid, content)
+            else:
+                raise NetworkException(400, f'评论 {cid} 不存在')
+            response = build_success_response(msg=f'回复评论 {cid} 成功')
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+
+
+# 删除书本的评论
 @bp.route('/<int:book_id>/comments/delete', methods=['POST'])
 def delete_comments(book_id):
     if request.method == 'POST':
@@ -184,14 +274,14 @@ def delete_comments(book_id):
             uid = user['id']
             bid, cid = request.json.get('bookId'), request.json.get('commentId')
             # 检查 URL 与请求参数 book_id 是否一致
-            if str(bid) != str(book_id):
+            if bid is None or str(bid) != str(book_id):
                 raise NetworkException(400, 'Invalid book_id')
             # 检查评论 ID 是否为空，前面已经保证 uid 和 bid 不为空
             if not cid:
                 raise NetworkException(400, 'commentId 缺失')
-            # 检查是否有这条评论
+            # 检查用户是否有这条评论
             if check_has_comment(pooldb, uid, cid):
-                del_comments_sql(uid, bid, cid)  # 数据库中删除该条评论
+                del_comments_sql(uid, cid)  # 数据库中删除该条评论
             else:
                 raise NetworkException(400, f'评论 {cid} 不存在或无权删除')
             url = url_for('book_detail.index', book_id=bid)
@@ -205,14 +295,41 @@ def delete_comments(book_id):
         return response
 
 
+# 删除书本评论的回复
+@bp.route('/<int:book_id>/comment/del', methods=['POST'])
+def del_replies(book_id):
+    if request.method == 'POST':
+        try:
+            user = check_user_before_request(request)
+            uid = user['id']
+            bid, cid = request.json.get('bookId'), request.json.get('commentId')
+            # 检查 URL 与请求参数是否一致，且保证非空
+            if bid is None or str(bid) != str(book_id):
+                raise NetworkException(400, 'Invalid book_id')
+            # 检查用户是否有这条评论
+            if check_has_comment(pooldb, uid, cid):
+                del_replies_sql(uid, cid)
+            else:
+                raise NetworkException(400, f'评论 {cid} 不存在或无权删除')
+            response = build_success_response(msg=f'删除回复 {cid} 成功')
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+
+
+# 评论详情页，返回书本评论的详细内容以及子评论
 @bp.route('/<int:book_id>/comment/<int:comment_id>', methods=['GET'])
 def index_comment(book_id, comment_id):
     if request.method == 'GET':
         try:
             if not check_has_comment_for_book(pooldb, book_id, comment_id):
                 raise NetworkException(400, '该书没有这条评论')
-            # 递归深度默认为 4
-            depth = int(request.headers.get('depth', 4))
+            # 递归深度默认为 6
+            depth = int(request.headers.get('depth', 6))
             comment_details = get_comment_details(comment_id, depth=depth)
             data = comment_details
             response = build_success_response(data)
@@ -225,6 +342,7 @@ def index_comment(book_id, comment_id):
         return response
 
 
+# 书本详情页，包括书籍信息和评论信息
 @bp.route('/<int:book_id>', methods=['GET'])
 def index(book_id):
     if request.method == 'GET':

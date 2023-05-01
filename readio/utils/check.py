@@ -1,7 +1,7 @@
 import inspect
 
 import pymysql.cursors
-from readio.utils.executeSQL import execute_sql_query
+from readio.utils.executeSQL import execute_sql_query, execute_sql_query_one
 
 
 def printException(e):
@@ -95,8 +95,21 @@ def check_has_comment(pooldb, uid, cid):
     try:
         check_comment_sql = "SELECT COUNT(*) FROM comments WHERE userId=%s AND commentId=%s"
         args = uid, cid
-        comment_count = execute_sql_query(pooldb, check_comment_sql, args)
-        return comment_count[0]['COUNT(*)'] > 0
+        comment_count = execute_sql_query_one(pooldb, check_comment_sql, args)
+        return comment_count['COUNT(*)'] > 0
+    except Exception as e:
+        print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        raise Exception("Error occurred while checking the comment: " + str(e))
+
+
+def check_exist_comment(pooldb, cid):
+    """ 判断评论 cid 是否存在 """
+    try:
+        check_comment_sql = "SELECT COUNT(*) FROM comments WHERE commentId=%s"
+        args = cid
+        comment_count = execute_sql_query_one(pooldb, check_comment_sql, args)
+        return comment_count['COUNT(*)'] > 0
     except Exception as e:
         print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
@@ -108,8 +121,8 @@ def check_has_comment_for_book(pooldb, bid, cid):
     try:
         check_sql = "SELECT COUNT(*) FROM comment_book WHERE bookId=%s AND commentId=%s"
         args = bid, cid
-        count = execute_sql_query(pooldb, check_sql, args)
-        return count[0]['COUNT(*)'] > 0
+        count = execute_sql_query_one(pooldb, check_sql, args)
+        return count['COUNT(*)'] > 0
     except Exception as e:
         print("[ERROR] " + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)

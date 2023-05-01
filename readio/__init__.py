@@ -92,23 +92,35 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         headers['Authorization'] = token
         headers['depth'] = 3
     resp_dict = {}
+    """ ------------- book details ------------- """
     # show book details
     url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
-    # show comment details
-    url_and_params = get_url('book_detail.index_comment', book_id=3, comment_id=1)
-    client_test(client, url_and_params, 'GET', headers=headers)
-
     # add
     # comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
     comment = {'content': '好言良劝增贤文', 'bookId': 3}
     url_and_params = get_url('book_detail.add_comments', book_id=3)
     # resp_dict = client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
     # del
-    comment_id = extract_number(resp_dict['msg']) if len(resp_dict) > 0 else 4
+    # 新添加的，否则手动确定
+    comment_id = extract_number(resp_dict['msg']) if len(resp_dict) > 0 else 10
     comment_to_del = {'bookId': 3, 'commentId': comment_id}
     url_and_params = get_url('book_detail.delete_comments', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment_to_del)
+    """ ------------- comment details ------------- """
+    # show comment details
+    url_and_params = get_url('book_detail.index_comment', book_id=3, comment_id=1)
+    client_test(client, url_and_params, 'GET', headers=headers)
+    # add
+    reply_to = 11
+    reply = {'content': f'对{reply_to}的回复-to-del2', 'bookId': 3, 'commentId': reply_to}
+    url_and_params = get_url('book_detail.reply_comment', book_id=3)
+    # client_test(client, url_and_params, 'POST', headers=headers, json_data=reply)
+    # del test: 14 11 9
+    reply_to_del = 14
+    reply_del = {'bookId': 3, 'commentId': reply_to_del}
+    url_and_params = get_url('book_detail.del_replies', book_id=3)
+    # client_test(client, url_and_params, 'POST', headers=headers, json_data=reply_del)
 
 
 def app_test_bookshelf(client, login_data: Dict = None, headers=None):
