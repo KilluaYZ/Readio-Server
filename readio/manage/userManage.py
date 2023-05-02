@@ -10,7 +10,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from readio.utils import check
 from readio.utils.buildResponse import *
 from readio.utils.check import is_number
-from readio.utils.auth import checkTokensGetState, check_user_before_request, USER_ROLE_MAP, get_user_by_id
+from readio.utils.auth import check_tokens_get_state, check_user_before_request, USER_ROLE_MAP, get_user_by_id
 from readio.utils.myExceptions import NetworkException
 
 # conndb = Conndb(cursor_mode='dict')
@@ -46,24 +46,22 @@ def query_user_sql(queryParam):
             pooldb.close_conn(conn, cursor)
 
 
-@bp.route('/list', methods=['POST'])
+@bp.route('/list', methods=['GET'])
 def userList():
     try:
-        user = check_user_before_request(request, roles='admin')
-
-        queryParam = request.json
-        if ('pageNum' in queryParam and 'pageSize' in queryParam):
-            if (not is_number(queryParam['pageNum']) or not is_number(queryParam['pageSize'])):
-                # pageNum和pageSize必须为数字
-                # print('pageNum和pageSize 正确性检验失败')
-                raise NetworkException(code=400, msg='pageNum和pageSize 正确性检验失败')
+        check_user_before_request(request, roles='admin')
+        queryParam = request.args
         rows = query_user_sql(queryParam)
         data_length = len(rows)
         # print('debug',rows)
         # 构造前端所需数据
-        pageSize = queryParam['pageSize']
-        pageNum = queryParam['pageNum']
-        rows = rows[(pageNum - 1) * pageSize:pageNum * pageSize]
+        pageSize = request.args.get('pageSize')
+        pageNum = request.args.get('pageNum')
+        if pageSize is not None and pageNum is not None:
+            pageSize = int(pageSize)
+            pageNum = int(pageNum)
+            rows = rows[(pageNum - 1) * pageSize:pageNum * pageSize]
+
         response = []
         for row in rows:
             if not isinstance(row['createTime'], str):
@@ -78,7 +76,7 @@ def userList():
                 'email': row['email']
             })
 
-        return build_success_response(response)
+        return build_success_response(data=response, length=data_length)
 
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
@@ -253,7 +251,7 @@ def getOnlineUser():
         # if pageNum is None or pageSize is None:
         #     raise NetworkException(400, "前端数据错误，pageNum或pageSize不存在")
 
-        check_user_before_request(request, roles='admin')
+        check_user_before_request(request, roles='manager')
 
         userName = request.args.get('userName')
         if userName is None:

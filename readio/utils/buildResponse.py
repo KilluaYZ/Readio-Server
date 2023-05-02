@@ -8,7 +8,7 @@ from flask import make_response
 def build_response(code: int, msg: str, data=None, length=0):
     if data is None:
         data = {}
-    return make_response(json.dumps({'code': code, 'msg': msg, 'data': data, 'length': length}))
+    return make_response(json.dumps({'code': code, 'msg': msg, 'data': data, 'length': length}), code)
 
 
 def build_error_response(code=400, msg='操作失败'):

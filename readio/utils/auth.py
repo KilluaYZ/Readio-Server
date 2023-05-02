@@ -66,25 +66,47 @@ def get_user_by_token(token) -> Dict[str, Union[int, str]]:
         cursor.execute('select * from users, user_token where token=%s and user_token.uid=users.id', token)
         row = cursor.fetchone()
         if row is None or len(row) <= 0:
-            raise Exception('会话不存在')
+            raise NetworkException(code=401, msg='会话以失效')
 
         pooldb.close_conn(conn, cursor)
         return row
 
     except Exception as e:
-        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        check.printException(e)
+        raise e
+    finally:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
-        print(e)
-        raise Exception('会话不存在')
 
 
-def checkTokensGetState(token, roles):
+def check_if_token_exist(token: str) -> bool:
+    try:
+        conn, cursor = pooldb.get_conn()
+        cursor.execute('select * from user_token where token=%s ', token)
+        row = cursor.fetchall()
+        if row is None or len(row) <= 0:
+            return False
+        return True
+
+    except Exception as e:
+        check.printException(e)
+        raise e
+    finally:
+        if conn is not None:
+            pooldb.close_conn(conn, cursor)
+
+
+
+
+def check_tokens_get_state(token, roles):
     if token is None:
         raise Exception(404)
     # print('token=',token)
+    if not check_if_token_exist(token):
+        return 401
+
     user = get_user_by_token(token)
-    if not user:
+    if user is None:
         # 查无此人
         return 404
     if roles == 'admin':
@@ -107,14 +129,16 @@ def checkTokensGetState(token, roles):
 
 
 # 检查Token和权限，如果不是200就直接返回到客户端
-def checkTokensReponseIfNot200(token, roles):
-    state = checkTokensGetState(token, roles)
-    if state == 404:
-        raise NetworkException(401, '会话已过期，请重新登录')
+def check_tokens_reponse_if_not200(token, roles):
+    state = check_tokens_get_state(token, roles)
+    if state == 401:
+        raise NetworkException(code=401, msg='会话已过期，请重新登录')
+    elif state == 404:
+        raise NetworkException(code=404, msg='持有该令牌的用户不存在或已被删除')
     elif state == 403:
-        raise NetworkException(403, '您没有该操作的权限，请联系管理员')
+        raise NetworkException(code=403, msg='您没有该操作的权限，请联系管理员')
     elif state == 500:
-        raise NetworkException(500, '服务器内部发生错误，请联系管理员')
+        raise NetworkException(code=500, msg='服务器内部发生错误，请联系管理员')
 
 
 def check_user_before_request(req, raise_exc=True, roles='common') -> Optional[Dict[str, Union[int, str]]]:
@@ -127,8 +151,7 @@ def check_user_before_request(req, raise_exc=True, roles='common') -> Optional[D
     :raises: Exception, 当访问凭证不存在或无效时，如果raise_exc=True就会抛出异常
     """
     token = req.headers.get('Authorization')  # 获取请求头部中的"Authorization"字段值
-    if token is None:
-        token = req.cookies.get('Authorization')  # 如果在头部中找不到Authorization，则尝试在cookies中寻找
+
     if token is None:
         if raise_exc:
             raise NetworkException(401, '访问凭证不存在，无法进行访问')
@@ -136,7 +159,7 @@ def check_user_before_request(req, raise_exc=True, roles='common') -> Optional[D
             return None
 
     # 检查访问凭证是否有效
-    checkTokensReponseIfNot200(token, roles)
+    check_tokens_reponse_if_not200(token, roles)
 
     # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
     user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象

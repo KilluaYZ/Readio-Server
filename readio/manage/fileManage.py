@@ -424,19 +424,71 @@ def __get_res_info_by_type_sql(type=None):
             pooldb.close_conn(conn, cursor)
 
 
+
+def __query_res_info_sql(query_param:dict) -> list[dict]:
+    try:
+        conn, cursor = pooldb.get_conn()
+        sql = f'select * from file_info'
+        arg_list = []
+        if 'fileName' in query_param or 'fileType' in query_param:
+            sql = sql + ' where 1=1 '
+            if 'fileName' in query_param:
+                sql += f' and fileName like %s'
+                arg_list.append(f'%{query_param["fileName"]}%')
+            if 'fileType' in query_param:
+                sql += f' and fileType=%s'
+                arg_list.append(query_param['fileType'])
+        if 'sortMode' in query_param:
+            if query_param['sortMode'] == 'Old':
+                sql += ' order by createTime asc '
+            else:
+                sql += ' order by createTime desc '
+        else:
+            sql += ' order by createTime desc '
+
+        cursor.execute(sql, tuple(arg_list))
+        rows = cursor.fetchall()
+        return rows
+
+    except Exception as e:
+        raise e
+
+    finally:
+        if conn is not None:
+            pooldb.close_conn(conn, cursor)
 @bp.route('/getResInfo', methods=['GET'])
 def getResInfo():
     try:
-        data = request.args
-        fileType = None
-        if 'fileType' in data:
-            fileType = data['fileType']
-        rows = __get_res_info_by_type_sql(fileType)
+
+        fileName = request.args.get('fileName')
+        fileType = request.args.get('fileType')
+        sortMode = request.args.get('sortMode')
+        query_param = {}
+        if fileName is not None:
+            query_param['fileName'] = fileName
+        if fileType is not None:
+            query_param['fileType'] = fileType
+        if sortMode is not None:
+            query_param['sortMode'] = sortMode
+
+        rows = __query_res_info_sql(query_param)
+        length = len(rows)
+        #如果前端传来了pageSize和pageNum则说明需要分页
+        pageSize = request.args.get('pageSize')
+        pageNum = request.args.get('pageNum')
+        if pageNum is not None and pageSize is not None:
+            pageSize = int(pageSize)
+            pageNum = int(pageNum)
+            rows = rows[(pageNum - 1) * pageSize:pageNum * pageSize]
+
         for i in range(len(rows)):
             rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
             rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d %H:%M:%S')
 
-        return build_success_response(rows)
+        return build_success_response(data=rows, length=length)
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
         check.printException(e)

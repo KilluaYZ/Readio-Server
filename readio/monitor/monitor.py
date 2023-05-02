@@ -13,7 +13,7 @@ from readio.utils.auth import check_user_before_request
 from readio.utils.myExceptions import NetworkException
 
 monitor = Blueprint('monitor', __name__)
-from readio.utils.auth import get_user_by_token, checkTokensGetState
+from readio.utils.auth import get_user_by_token, check_tokens_get_state
 
 
 def get_host_ip():

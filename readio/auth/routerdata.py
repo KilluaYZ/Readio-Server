@@ -50,6 +50,30 @@ admin_router_data = [
                 }
             },
             {
+                "name": "File",
+                "path": "file",
+                "hidden": False,
+                "component": "manage/file/index",
+                "meta": {
+                    "title": "文件管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
+                "name": "Series",
+                "path": "seires",
+                "hidden": False,
+                "component": "manage/series/index",
+                "meta": {
+                    "title": "系列管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
                 "name": "Visualization",
                 "path": "visualization",
                 "hidden": False,
@@ -152,6 +176,30 @@ manager_router_data = [
                 "component": "manage/post/index",
                 "meta": {
                     "title": "帖子管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
+                "name": "File",
+                "path": "file",
+                "hidden": False,
+                "component": "manage/file/index",
+                "meta": {
+                    "title": "文件管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
+                "name": "Series",
+                "path": "seires",
+                "hidden": False,
+                "component": "manage/series/index",
+                "meta": {
+                    "title": "系列管理",
                     "icon": "dict",
                     "noCache": False,
                     "link": None
