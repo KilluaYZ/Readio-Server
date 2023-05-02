@@ -425,7 +425,7 @@ def __get_res_info_by_type_sql(type=None):
 
 
 
-def __query_res_info_sql(query_param:dict) -> list[dict]:
+def __query_res_info_sql(query_param:dict) -> list:
     try:
         conn, cursor = pooldb.get_conn()
         sql = f'select * from file_info'

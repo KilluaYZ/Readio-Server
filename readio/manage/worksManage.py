@@ -2,6 +2,8 @@
 二创管理
 """
 import functools
+from typing import List
+
 from flask import request
 from flask import Blueprint
 from flask import redirect
@@ -99,7 +101,7 @@ def get_bref():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
-def __query_series_brief_sql(query_param:dict) -> list[dict]:
+def __query_series_brief_sql(query_param:dict) -> List[dict]:
     try:
         conn, cursor = pooldb.get_conn()
         sql_from_table = 'select distinct series.seriesId as seriesId, seriesName, userId, isFinished, abstract, likes, views, shares, collect, series.createTime as createTime from series '
