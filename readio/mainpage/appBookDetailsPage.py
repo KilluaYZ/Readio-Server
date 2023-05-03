@@ -1,6 +1,8 @@
 """
 书籍详情页
-返回收藏、评论等信息，标志是否已加入书架
+    - 返回书籍及其评论信息，标志是否已加入书架，标志评论是否已点赞
+  评论子页
+    - 评论的详细信息，包括子评论及其回复
 """
 
 import inspect
@@ -16,7 +18,7 @@ import readio.database.connectPool
 from readio.utils.auth import check_user_before_request
 from readio.utils.buildResponse import *
 from readio.utils.check import check_book_added, check_has_comment, check_exist_comment_for_book, check_exist_comment, \
-    check_comment_liked
+    check_comment_liked, check_book_liked
 from readio.utils.executeSQL import execute_sql_write, execute_sql_query, execute_sql_query_one
 from readio.utils.formatter import process_comment_time, process_comment_list_time
 from readio.utils.myExceptions import NetworkException
@@ -27,7 +29,14 @@ bp = Blueprint('book_detail', __name__, url_prefix='/app/book')
 pooldb = readio.database.connectPool.pooldb
 
 
+def view_book_sql(bid):
+    """将表 books(id, views) 中的 views 加一"""
+    view_count_sql = 'UPDATE books SET views=views+1 WHERE id=%s'
+    execute_sql_write(pooldb, view_count_sql, bid)
+
+
 def get_book_info_sql(bid):
+    view_book_sql(bid)
     # 书籍信息
     get_book_sql = 'SELECT * FROM books WHERE books.id=%s'
     book = execute_sql_query_one(pooldb, get_book_sql, bid)
@@ -49,17 +58,40 @@ def get_book_details(bid, user=None):
             comment = process_comment_time(comment)
             comment['liked'] = False
         details['added'] = False
+        details['liked'] = False
     else:
         for comment in comments:
             comment = process_comment_time(comment)
             comment['liked'] = check_comment_liked(pooldb, user['id'], comment['commentId'])
         details['added'] = check_book_added(pooldb, user['id'], bid)
+        details['liked'] = check_book_liked(pooldb, user['id'], bid)
     comments_data['size'] = len(comments)
     comments_data['data'] = comments
     # 信息汇总 -> 书籍详情 (details)
     details['book_info'] = book_info
     details['comments'] = comments_data
     return details
+
+
+def update_like_book_sql(uid: int, bid: int, like=None):
+    """
+    更新书籍点赞
+    注意： 数据库 book_likes 表中设置了触发器更新 books，所以点赞或取消只需要更新 book_likes
+    """
+    if like is not None:
+        if like == 1:
+            # 跳过重复点赞
+            if check_book_liked(pooldb, uid, bid):
+                return
+            update_bl_sql = 'INSERT INTO book_likes(userId, bookId) VALUES(%s,%s)'
+            args = uid, bid
+            execute_sql_write(pooldb, update_bl_sql, args)
+        elif like == 0:
+            del_sql = "DELETE FROM book_likes WHERE userId=%s AND bookId=%s"
+            d_args = uid, bid
+            execute_sql_write(pooldb, del_sql, d_args)
+        else:
+            raise NetworkException(400, 'Invalid like (must be 0 or 1)')
 
 
 def get_comment_sql(comment_id: int) -> dict:
@@ -276,18 +308,44 @@ def index(book_id):
         return response
 
 
+@bp.route('/<int:book_id>/like', methods=['POST'])
+def update_like_book(book_id):
+    if request.method == 'POST':
+        try:
+            # 检查是否有用户 token ，有返回用户，否则返回 None
+            user = check_user_before_request(request)
+            uid = user['id']
+            bid, like = request.json.get('bookId'), request.json.get('like', None)
+            # 检查 URL 与请求参数 book_id 是否一致
+            if bid is None or str(bid) != str(book_id):
+                raise NetworkException(400, 'Invalid bookId')
+            if like is None:
+                raise NetworkException(400, 'Invalid like (must be 0 or 1)')
+            update_like_book_sql(uid, bid, like)
+            url = url_for('book_detail.index', book_id=bid)
+            response = build_redirect_response(f'成功更新书籍点赞，重定向至书籍详情页', url)
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+
+
 # 增加书本的评论
 @bp.route('/<int:book_id>/comments/add', methods=['POST'])
 def add_comments(book_id):
     if request.method == 'POST':
         try:
             user = check_user_before_request(request)
-            # print(user)
             uid, bid = user['id'], request.json.get('bookId')
-            content = request.json.get('content')
+            content = request.json.get('content', None)
             # 检查 URL 与请求参数 book_id 是否一致
             if bid is None or str(bid) != str(book_id):
                 raise NetworkException(400, 'Invalid bookId')
+            if content is None:
+                raise NetworkException(400, '请填写评论内容')
             cid = add_comments_sql(uid, bid, content)
             url = url_for('book_detail.index', book_id=bid)
             response = build_redirect_response(f'添加评论 {cid} 成功，重定向至书籍详情页', url)
@@ -300,6 +358,7 @@ def add_comments(book_id):
         return response
 
 
+# 更新书本的评论
 @bp.route('/<int:book_id>/comments/<int:comment_id>/update', methods=['POST'])
 def update_comments(book_id, comment_id):
     return update_comment(book_id, comment_id)
@@ -335,7 +394,7 @@ def delete_comments(book_id):
         return response
 
 
-""" ========== 针对书籍详情页下的评论页 ========== """
+""" ========== 针对书籍详情页下的评论子页 ========== """
 
 
 # 对他人的评论进行回复，可以是子评论的回复，所以不检查书籍下是否有该条评论
@@ -388,7 +447,7 @@ def update_comment(book_id, comment_id):
                     update_comment_sql(uid, cid, content=content, like=like)
                 else:
                     raise NetworkException(400, f'无权修改评论 {cid}')
-            response = build_success_response(f'修改成功')
+            response = build_success_response(f'评论修改成功')
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
         except Exception as e:

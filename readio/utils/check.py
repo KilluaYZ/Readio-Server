@@ -89,6 +89,21 @@ def check_book_added(pooldb, uid, bid):
         raise Exception("Error occurred while checking book added: " + str(e))
 
 
+def check_book_liked(pooldb, uid, bid):
+    """ 判断用户 uid 是否点赞书籍 bid """
+    try:
+        check_like_sql = "SELECT COUNT(*) FROM book_likes WHERE userId=%s AND bookId=%s"
+        args = uid, bid
+        like_count = execute_sql_query_one(pooldb, check_like_sql, args)
+        # 根据查询结果，判断用户是否点赞
+        return like_count['COUNT(*)'] > 0
+    except pymysql.Error as e:
+        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        # raise
+        raise Exception("Error occurred while checking book liked: " + str(e))
+
+
 def check_comment_liked(pooldb, uid, cid):
     """ 判断用户 uid 是否点赞评论 cid """
     try:
