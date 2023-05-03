@@ -54,7 +54,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
-    # app_test(app)
+    app_test(app)
 
     return app
 
@@ -95,10 +95,16 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
     # add
-    # comment = {'content': '书很短，一下就读完。意很长，可受用终身。', 'bookId': 3}
+    # comment = {'content': '书很短，一下就读完。', 'bookId': 3}
     comment = {'content': '好言良劝增贤文', 'bookId': 3}
     url_and_params = get_url('book_detail.add_comments', book_id=3)
     # resp_dict = client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
+    # update
+    bid, cid = 3, 1
+    comment = {'bookId': bid, 'commentId': cid, 'content': '书很短，一下就读完。意很长，可受用终身。', 'like': 1}
+    # comment = {'bookId': bid, 'commentId': cid, 'like': 0}
+    url_and_params = get_url('book_detail.update_comments', book_id=bid, comment_id=cid)
+    # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
     # del
     # 新添加的，否则手动确定
     comment_id = extract_number(resp_dict['msg']) if len(resp_dict) > 0 else 10
@@ -114,6 +120,12 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     reply = {'content': f'对{reply_to}的回复-to-del2', 'bookId': 3, 'commentId': reply_to}
     url_and_params = get_url('book_detail.reply_comment', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=reply)
+    # update
+    bid, cid = 3, 1
+    # comment = {'bookId': bid, 'commentId': cid, 'content': '书很短，一下就读完。意很长，可受用终身。', 'like': 1}
+    comment = {'bookId': bid, 'commentId': cid, 'like': 1}
+    url_and_params = get_url('book_detail.update_comment', book_id=bid, comment_id=cid)
+    client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
     # del test: 14 11 9
     reply_to_del = 14
     reply_del = {'bookId': 3, 'commentId': reply_to_del}

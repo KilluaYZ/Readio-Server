@@ -79,14 +79,32 @@ def check_book_added(pooldb, uid, bid):
     try:
         check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s"
         args = uid, bid
-        book_count = execute_sql_query(pooldb, check_book_sql, args)
-        # book_count = [{'COUNT(*)': 1}]
-        return book_count[0]['COUNT(*)'] > 0
+        book_count = execute_sql_query_one(pooldb, check_book_sql, args)
+        # book_count = {'COUNT(*)': 1}
+        return book_count['COUNT(*)'] > 0
     except pymysql.Error as e:
         print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
         print(e)
         # raise
         raise Exception("Error occurred while checking book added: " + str(e))
+
+
+def check_comment_liked(pooldb, uid, cid):
+    """ 判断用户 uid 是否点赞评论 cid """
+    try:
+        # 构造 SQL 查询语句
+        check_like_sql = "SELECT COUNT(*) FROM comment_likes WHERE userId=%s AND commentId=%s"
+        args = uid, cid
+        # 执行 SQL 查询，并获取结果
+        like_count = execute_sql_query_one(pooldb, check_like_sql, args)
+        # like_count = {'COUNT(*)': 1}
+        # 根据查询结果，判断用户是否点赞了该评论
+        return like_count['COUNT(*)'] > 0
+    except pymysql.Error as e:
+        print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+        print(e)
+        # raise
+        raise Exception("Error occurred while checking comment liked: " + str(e))
 
 
 # 注意：这里未检查用户是否有凭证，可以配合使用 check_user_before_request
@@ -116,7 +134,7 @@ def check_exist_comment(pooldb, cid):
         raise Exception("Error occurred while checking the comment: " + str(e))
 
 
-def check_has_comment_for_book(pooldb, bid, cid):
+def check_exist_comment_for_book(pooldb, bid, cid):
     """ 判断表 comment_book(bookId,commentId) 中该书 (bid) 是否有评论 (cid) """
     try:
         check_sql = "SELECT COUNT(*) FROM comment_book WHERE bookId=%s AND commentId=%s"
