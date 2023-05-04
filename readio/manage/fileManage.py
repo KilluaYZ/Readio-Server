@@ -292,12 +292,12 @@ def get_file_binary_by_id():
     try:
         data = request.args
         if 'fileId' not in data:
-           raise NetworkException(code=400, msg='不能同时指定文件Id和Name')
+            raise NetworkException(code=400, msg='不能同时指定文件Id和Name')
 
         fileId = data['fileId']
         fileInfo = __getFileInfoById(fileId)
         if fileInfo is None:
-            raise  NetworkException(code=404, msg='资源不存在')
+            raise NetworkException(code=404, msg='资源不存在')
         print("fileInfo = ", fileInfo)
         fileContentHandle = getFileHandlerById(fileId)
         if fileContentHandle is None:
@@ -310,7 +310,8 @@ def get_file_binary_by_id():
         #     "fileContent": f'data:image/{fileInfo["fileType"]};base64,{str(base64.b64encode(fileContent))}'
         # }
         # return build_success_response(data=response, msg='获取成功')
-        return send_file(fileContentHandle, fileInfo['fileType'], download_name=f"{fileInfo['fileName']}.{fileInfo['fileType']}")
+        return send_file(fileContentHandle, fileInfo['fileType'],
+                         download_name=f"{fileInfo['fileName']}.{fileInfo['fileType']}")
 
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
@@ -424,8 +425,7 @@ def __get_res_info_by_type_sql(type=None):
             pooldb.close_conn(conn, cursor)
 
 
-
-def __query_res_info_sql(query_param:dict) -> list:
+def __query_res_info_sql(query_param: dict) -> list:
     try:
         conn, cursor = pooldb.get_conn()
         sql = f'select * from file_info'
@@ -456,6 +456,8 @@ def __query_res_info_sql(query_param:dict) -> list:
     finally:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+
+
 @bp.route('/getResInfo', methods=['GET'])
 def getResInfo():
     try:
@@ -473,7 +475,7 @@ def getResInfo():
 
         rows = __query_res_info_sql(query_param)
         length = len(rows)
-        #如果前端传来了pageSize和pageNum则说明需要分页
+        # 如果前端传来了pageSize和pageNum则说明需要分页
         pageSize = request.args.get('pageSize')
         pageNum = request.args.get('pageNum')
         if pageNum is not None and pageSize is not None:
