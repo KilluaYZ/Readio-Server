@@ -18,6 +18,7 @@ from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
 import readio.utils.check as check
+from readio.utils.executeSQL import *
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('file', __name__, url_prefix='/file')
@@ -122,10 +123,11 @@ def __loadFileHandle(fileInfo: dict) -> BinaryIO:
     return fileHandler
 
 
-def __rmFile(fileInfo: dict):
+def __rm_file(fileInfo: dict):
     """
         通过fileInfo删除文件
     """
+    print(f"[DEBUG] __rm_file {os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}")
     os.remove(
         f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}")
 
@@ -298,7 +300,7 @@ def get_file_binary_by_id():
         fileInfo = __getFileInfoById(fileId)
         if fileInfo is None:
             raise NetworkException(code=404, msg='资源不存在')
-        print("fileInfo = ", fileInfo)
+        # print("fileInfo = ", fileInfo)
         fileContentHandle = getFileHandlerById(fileId)
         if fileContentHandle is None:
             raise Exception("无法获取该文件的二进制数据")
@@ -330,6 +332,7 @@ def uploadFileBinarySql(fileInfo: dict):
         hashObj = hashlib.sha256()
         hashObj.update(fileContent)
         fileInfo['fileId'] = hashObj.hexdigest()
+        print(333)
 
         if 'filePath' not in fileInfo:
             if fileType in PICTURE_TYPES:
@@ -353,7 +356,7 @@ def uploadFileBinarySql(fileInfo: dict):
         raise e
 
 
-@bp.route('/uploadBinary', methods=['POST'])
+@bp.route('/uploadFile', methods=['POST'])
 def uploadFileBinary():
     try:
         data = request.json
@@ -369,14 +372,14 @@ def uploadFileBinary():
 
     except Exception as e:
         check.printException(e)
-        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+        return build_error_response(code=500, msg='服务器内部错误')
 
 
-def delFileSql(fileInfo: dict):
+def del_file_sql(fileInfo: dict):
     try:
         conn, cursor = pooldb.get_conn()
 
-        __rmFile(fileInfo)
+        __rm_file(fileInfo)
 
         cursor.execute('delete from file_info where fileId = %s',
                        (fileInfo['fileId']))
@@ -389,21 +392,29 @@ def delFileSql(fileInfo: dict):
         raise e
 
 
-@bp.route('/delete', methods=['GET'])
+@bp.route('/delFile', methods=['GET'])
 def deleteFile():
     try:
+        check_user_before_request(request, roles='manager')
         data = request.args
         if 'fileId' not in data:
             return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
 
-        fileInfo = getFileByteById(data['fileId'])
-        __rmFile(fileInfo)
+        rows = __query_res_info_sql(request.args)
+        if rows is None or len(rows) <= 0:
+            raise NetworkException(400, '找不到对应资源文件')
+        fileInfo = rows[0]
+        print(f'[DEBUG] fileInfo = {fileInfo}')
+        # __rmFile(fileInfo)
 
+        del_file_sql(fileInfo)
+
+        print('finish')
         return build_success_response()
 
     except Exception as e:
         check.printException(e)
-        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+        return build_error_response(code=500, msg='服务器内部错误')
 
 
 def __get_res_info_by_type_sql(type=None):
@@ -430,14 +441,18 @@ def __query_res_info_sql(query_param: dict) -> list:
         conn, cursor = pooldb.get_conn()
         sql = f'select * from file_info'
         arg_list = []
-        if 'fileName' in query_param or 'fileType' in query_param:
+        if 'fileName' in query_param or 'fileType' in query_param or 'fileId' in query_param:
             sql = sql + ' where 1=1 '
             if 'fileName' in query_param:
-                sql += f' and fileName like %s'
+                sql += f' and fileName like %s '
                 arg_list.append(f'%{query_param["fileName"]}%')
             if 'fileType' in query_param:
-                sql += f' and fileType=%s'
+                sql += f' and fileType=%s '
                 arg_list.append(query_param['fileType'])
+            if 'fileId' in query_param:
+                sql += f' and fileId=%s '
+                arg_list.append(query_param['fileId'])
+
         if 'sortMode' in query_param:
             if query_param['sortMode'] == 'Old':
                 sql += ' order by createTime asc '
@@ -458,22 +473,10 @@ def __query_res_info_sql(query_param: dict) -> list:
             pooldb.close_conn(conn, cursor)
 
 
-@bp.route('/getResInfo', methods=['GET'])
+@bp.route('/getFileInfo', methods=['GET'])
 def getResInfo():
     try:
-
-        fileName = request.args.get('fileName')
-        fileType = request.args.get('fileType')
-        sortMode = request.args.get('sortMode')
-        query_param = {}
-        if fileName is not None:
-            query_param['fileName'] = fileName
-        if fileType is not None:
-            query_param['fileType'] = fileType
-        if sortMode is not None:
-            query_param['sortMode'] = sortMode
-
-        rows = __query_res_info_sql(query_param)
+        rows = __query_res_info_sql(request.args)
         length = len(rows)
         # 如果前端传来了pageSize和pageNum则说明需要分页
         pageSize = request.args.get('pageSize')
@@ -488,6 +491,26 @@ def getResInfo():
             rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(data=rows, length=length)
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+
+
+@bp.route('/updateFileInfo', methods=['POST'])
+def update_res_info():
+    try:
+        fileName = request.json.get('fileName')
+        fileId = request.json.get('fileId')
+        if fileName is None or fileId is None:
+            raise NetworkException(code=400, msg='前端数据错误，缺少fileName或fileId')
+
+        execute_sql_write(pooldb, 'update file_info set fileName=%s where fileId = %s', (fileName, fileId))
+
+        return build_success_response()
 
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
