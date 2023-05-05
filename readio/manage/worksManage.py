@@ -107,46 +107,37 @@ def get_bref():
 
 
 def __query_series_brief_sql(query_param: dict) -> List[dict]:
-    try:
-        conn, cursor = pooldb.get_conn()
-        sql_from_table = 'select distinct series.seriesId as seriesId, seriesName, userId, isFinished, abstract, likes, views, shares, collect, series.createTime as createTime from series '
-        arg_list = []
-        sql = sql_from_table
-        if 'seriesName' in query_param or 'seriesId' in query_param or 'seriesTag' in query_param:
-            sql_where = ' where 1=1 '
-            if 'seriesName' in query_param:
-                sql_where += ' and seriesName like %s '
-                arg_list.append(f'%{query_param["seriesName"]}%')
-            if 'seriesId' in query_param:
-                sql_where += ' and seriesId = %s '
-                arg_list.append(query_param['seriesId'])
-            if 'seriesTag' in query_param:
-                sql_from_table += ' , tag_series, tags '
-                sql_where += ' and tag_series.seriesId = series.seriesId and tag_series.tagId = tags.tagId and tags.content like %s '
-                arg_list.append(f"%{query_param['seriesTag']}%")
 
-            sql = sql_from_table + sql_where
+    sql_from_table = 'select distinct series.seriesId as seriesId, seriesName, userId, isFinished, abstract, likes, views, shares, collect, series.createTime as createTime from series '
+    arg_list = []
+    sql = sql_from_table
+    if 'seriesName' in query_param or 'seriesId' in query_param or 'seriesTag' in query_param:
+        sql_where = ' where 1=1 '
+        if 'seriesName' in query_param:
+            sql_where += ' and seriesName like %s '
+            arg_list.append(f'%{query_param["seriesName"]}%')
+        if 'seriesId' in query_param:
+            sql_where += ' and seriesId = %s '
+            arg_list.append(query_param['seriesId'])
+        if 'seriesTag' in query_param:
+            sql_from_table += ' , tag_series, tags '
+            sql_where += ' and tag_series.seriesId = series.seriesId and tag_series.tagId = tags.tagId and tags.content like %s '
+            arg_list.append(f"%{query_param['seriesTag']}%")
 
-        if 'sortMode' in query_param:
-            if query_param['sortMode'] == 'Hot':
-                sql += ' order by series.likes desc '
-            elif query_param['sortMode'] == 'New':
-                sql += ' order by series.createTime desc '
+        sql = sql_from_table + sql_where
 
-        # print(f'[DEBUG] sql = {sql}')
-        cursor.execute(sql, tuple(arg_list))
-        rows = cursor.fetchall()
-        return rows
+    if 'sortMode' in query_param:
+        if query_param['sortMode'] == 'Hot':
+            sql += ' order by series.likes desc '
+        elif query_param['sortMode'] == 'New':
+            sql += ' order by series.createTime desc '
 
-    except Exception as e:
-        check.printException(e)
-        if conn is not None:
-            conn.rollback()
-        raise e
+    # print(f'[DEBUG] sql = {sql}')
+    rows = execute_sql_query(pooldb, sql, tuple(arg_list))
 
-    finally:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+    return rows
+
+
 
 
 @bp.route('/getSeriesBrief', methods=['GET'])
@@ -191,25 +182,14 @@ def get_series_brief():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
-def get_pieces_by_id_sql(piecesId: int) -> dict:
-    try:
-        # print(f'[DEBUG] seriesId = {seriesId} type = {type(seriesId)}')
-        conn, cursor = pooldb.get_conn()
-        cursor.execute(
-            'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, series.seriesName as seriesName from pieces, series where piecesId = %s and pieces.seriesId = series.seriesId ',
-            piecesId)
-
-        row = cursor.fetchone()
-
-        # print(f'[DEBUG] row = {row}')
-        return row
-
-    except Exception as e:
-        check.printException(e)
-        raise e
-    finally:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+def __get_pieces_by_id_sql(piecesId: int) -> dict:
+    return execute_sql_query_one(
+        'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as '
+        'userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, '
+        'pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
+        'series.seriesName as seriesName from pieces, series where piecesId = %s and pieces.seriesId = '
+        'series.seriesId ',
+        piecesId)
 
 
 @bp.route('/getPiecesDetail', methods=['GET'])
@@ -223,7 +203,7 @@ def get_pieces_detail():
             raise NetworkException(400, '传入数据错误，未包含piecesId')
 
         pieceId = data['piecesId']
-        piece = get_pieces_by_id_sql(pieceId)
+        piece = __get_pieces_by_id_sql(pieceId)
         if piece is None:
             raise NetworkException(404, '该章节不存在')
         if 'createTime' in piece:
@@ -251,21 +231,8 @@ def get_series_detail():
     return build_success_response()
 
 
-def get_series_by_user_id(user_id: int) -> list:
-    try:
-        conn, cursor = pooldb.get_conn()
-        cursor.execute("select * from series where userId = %d", int(user_id))
-
-        rows = cursor.fetchall()
-        return rows
-
-    except Exception as e:
-        check.printException(e)
-        raise e
-    finally:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
-
+def __get_series_by_user_id(user_id: int) -> list:
+    return execute_sql_query(pooldb,"select * from series where userId = %s", user_id)
 
 @bp.route('/getUserSeriesList', methods=['GET'])
 def get_user_series_list():
@@ -274,7 +241,7 @@ def get_user_series_list():
     """
     try:
         user = check_user_before_request(request)
-        series_list = get_series_by_user_id(user['id'])
+        series_list = __get_series_by_user_id(user['id'])
         for i in range(len(series_list)):
             series_list[i]['createTime'] = series_list[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
@@ -493,4 +460,205 @@ def update_series():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
-    return build_success_response()
+
+def __get_tag_sql(query_param):
+    sql = ' select * from tags '
+    sql_where_list = []
+    if 'tagId' in query_param:
+        sql_where_list.append((' tagId = %s ', query_param['tagId']))
+    if 'content' in query_param:
+        sql_where_list.append((' content like %s ', f'%{query_param["content"]}%'))
+    args_list = []
+    if len(sql_where_list):
+        sql += ' where 1=1 '
+        for item in sql_where_list:
+            sql += f' and {item[0]} '
+            args_list.append(item[1])
+    if 'sortMode' in query_param:
+        if query_param['sortMode'] == 'Hot':
+            sql += 'order by linkedTimes desc '
+        elif query_param['sortMode'] == 'New':
+            sql += 'order by createTime desc '
+
+    rows = execute_sql_query(pooldb, sql, tuple(args_list))
+
+    return rows
+
+
+# 标签管理
+@bp.route('/tag/get', methods=['GET'])
+def get_tag():
+    """
+    请求tag
+    """
+    try:
+        check_user_before_request(request)
+        rows = __get_tag_sql(request.args)
+        length = len(rows)
+        pageSize = request.args.get('pageSize')
+        pageNum = request.args.get('pageNum')
+        if pageSize is not None and pageNum is not None:
+            pageSize = int(pageSize)
+            pageNum = int(pageNum)
+            rows = rows[pageSize * (pageNum - 1): pageSize * pageNum]
+
+        for i in range(len(rows)):
+            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
+
+        return build_success_response(data=rows, length=length)
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+@bp.route('/tag/update', methods=['POST'])
+def update_tag():
+    """
+    更新tag
+    """
+    try:
+        check_user_before_request(request)
+        tagId = request.json.get('tagId')
+        content = request.json.get('content')
+        if tagId is None or content is None:
+            raise NetworkException(400, "前端数据错误，缺少tagId或content")
+        sql = 'update tags set content = %s where tagId = %s'
+        execute_sql_write(pooldb, sql, (content, tagId))
+
+        return build_success_response()
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+@bp.route('/tag/del', methods=['GET'])
+def del_tag():
+    """
+    删除tag
+    """
+    try:
+        tagId = request.args.get('tagId')
+        if tagId is None:
+            raise NetworkException(400, "前端数据错误，缺少tagId")
+        check_user_before_request(request, roles='manager')
+        execute_sql_write(pooldb, 'delete from tags where tagId = %s', tagId)
+
+        return build_success_response()
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+@bp.route('/tag/add', methods=['POST'])
+def add_tag():
+    """
+    添加tag
+    """
+    try:
+        content = request.json.get('content')
+        if content is None:
+            raise NetworkException(400, "前端数据错误，缺少content")
+        check_user_before_request(request)
+
+        execute_sql_write(pooldb, 'insert into tags(content) values(%s)', content)
+
+        return build_success_response()
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+def __get_all_tag_series(tagId: str) -> List[Dict]:
+    sql = 'select ' \
+          'series.seriesId as seriesId, ' \
+          'seriesName, isFinished, abstract, ' \
+          'series.likes as likes, series.views as views, series.shares as shares, ' \
+          'series.collect as collect, series.createTime as createTime, ' \
+          'users.id as userId, users.userName as userName ' \
+          'from tag_series, series, users ' \
+          'where tag_series.tagId = %s ' \
+          'and tag_series.seriesId = series.seriesId ' \
+          'and series.userId = users.id'
+    rows = execute_sql_query(pooldb, sql, tagId)
+    return rows
+
+@bp.route('/tag/getAllTagSeries', methods=['GET'])
+def get_all_tag_series():
+    """
+    获取该tag标记过的所有series
+    """
+    try:
+        tagId = request.args.get('tagId')
+        if tagId is None:
+            raise NetworkException(400, "前端数据错误，tagId")
+
+        check_user_before_request(request)
+        rows = __get_all_tag_series(tagId)
+        for i in range(len(rows)):
+            print(f'[DEBUG] {rows[i]}')
+            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
+
+        return build_success_response(data=rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+def __del_series_relation_sql(tagId: str, seriesId: str):
+    sql = 'delete from tag_series where tagId = %s and seriesId = %s'
+    execute_sql_write(pooldb, sql, (tagId, seriesId))
+
+def __update_tag_linked_times_sql(tagId: str):
+    sql = 'update tags ' \
+          'set linkedTimes = ' \
+          '(select count(*) from tag_series where tag_series.tagId = %s) ' \
+          'where tags.tagId = %s'
+    execute_sql_write(pooldb, sql, (tagId, tagId))
+
+@bp.route('/tag/delSeriesRelation', methods=['GET'])
+def del_tag_series_relation():
+    """
+    获取与该tag标记过的series的联系
+    """
+    try:
+        tagId = request.args.get('tagId')
+        seriesId = request.args.get('seriesId')
+        if tagId is None or seriesId is None:
+            raise NetworkException(400, "前端数据错误，缺少tagId或seriesId")
+        # 先验证登录，并查看是否具有common权限
+        user = check_user_before_request(request)
+        # 拿到属于该用户的所有series
+        user_series_list = __get_series_by_user_id(user['id'])
+        is_find = False
+        # 遍历寻找前端发来的seriesId是否是用户自己的
+        for series in user_series_list:
+            if series['seriesId'] == seriesId:
+                is_find = True
+                break
+
+        if not is_find:
+            # 如果前端发来的seriesId不是用户自己的，则验证manager权限
+            check_user_before_request(request, roles='manager')
+
+        # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
+        __del_series_relation_sql(tagId, seriesId)
+        # 更新一下tag的被引用次数
+        __update_tag_linked_times_sql(tagId)
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+

@@ -127,7 +127,8 @@ def __rm_file(fileInfo: dict):
     """
         通过fileInfo删除文件
     """
-    print(f"[DEBUG] __rm_file {os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}")
+    print(
+        f"[DEBUG] __rm_file {os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}")
     os.remove(
         f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}")
 
@@ -284,6 +285,9 @@ def downloadFileBinary():
         else:
             return build_error_response(code=404, msg='资源不存在')
 
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
@@ -332,7 +336,8 @@ def uploadFileBinarySql(fileInfo: dict):
         hashObj = hashlib.sha256()
         hashObj.update(fileContent)
         fileInfo['fileId'] = hashObj.hexdigest()
-        print(333)
+        if __check_if_fileId_is_exist(fileInfo['fileId']):
+            raise NetworkException(400, '资源文件已经存在，请勿重复添加')
 
         if 'filePath' not in fileInfo:
             if fileType in PICTURE_TYPES:
@@ -350,10 +355,20 @@ def uploadFileBinarySql(fileInfo: dict):
         conn.commit()
         pooldb.close_conn(conn, cursor)
 
+    except NetworkException as e:
+        raise e
+
     except Exception as e:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
         raise e
+
+
+def __check_if_fileId_is_exist(fileId: str) -> bool:
+    row = execute_sql_query_one(pooldb, 'select * from file_info where fileId = %s', fileId)
+    if row is None:
+        return False
+    return True
 
 
 @bp.route('/uploadFile', methods=['POST'])
@@ -369,6 +384,10 @@ def uploadFileBinary():
         uploadFileBinarySql(data)
 
         return build_success_response()
+
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
         check.printException(e)
@@ -411,6 +430,9 @@ def deleteFile():
 
         print('finish')
         return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
         check.printException(e)

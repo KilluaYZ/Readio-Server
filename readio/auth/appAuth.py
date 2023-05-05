@@ -33,8 +33,7 @@ def authorize_phoneNumber_password(phoneNumber, passWord):
         return user
     except Exception as e:
         check.printException(e)
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         return None
 
 
@@ -55,8 +54,7 @@ def authorize_userId_password(userId, passWord):
         return user
     except Exception as e:
         check.printException(e)
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         return None
 
 
@@ -70,8 +68,7 @@ def register_user_sql(password, phoneNumber):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         raise e
 
 
@@ -87,8 +84,7 @@ def checkPhoneNumberIsUnique(phoneNumer):
         return False
 
     except Exception as e:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         raise e
 
 
@@ -147,8 +143,7 @@ def logout():
 
     except Exception as e:
         check.printException(e)
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         return build_error_response()
 
 
@@ -162,8 +157,7 @@ def user_profile_update_user_sql(userId, data):
         pooldb.close_conn(conn, cursor)
 
     except Exception as e:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         raise e
 
 
@@ -225,8 +219,7 @@ def user_profile_update_user_pwd(uid, pwd):
         pooldb.close_conn(conn, cursor)
     except Exception as e:
         check.printException(e)
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        pooldb.close_conn(conn, cursor) if conn is not None else None
         raise Exception(f'用户{uid}密码修改失败')
 
 
