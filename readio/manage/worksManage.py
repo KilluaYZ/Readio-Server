@@ -41,7 +41,7 @@ def random_get_pieces_brief_sql(size: int) -> list:
             pooldb.close_conn(conn, cursor)
 
 
-def get_tags_by_seriesId_sql(seriesId: int) -> list:
+def __get_tags_by_seriesId_sql(seriesId: int) -> list:
     try:
         # print(f'[DEBUG] seriesId = {seriesId} type = {type(seriesId)}')
         conn, cursor = pooldb.get_conn()
@@ -83,7 +83,7 @@ def get_bref():
             rows = random_get_pieces_brief_sql(size)
         # 查找最热门的标签
         for i in range(len(rows)):
-            tag_list = get_tags_by_seriesId_sql(int(rows[i]['seriesId']))
+            tag_list = __get_tags_by_seriesId_sql(int(rows[i]['seriesId']))
             if (len(tag_list)):
                 max_linked_id = 0
                 max_linked_tag = None
@@ -107,7 +107,6 @@ def get_bref():
 
 
 def __query_series_brief_sql(query_param: dict) -> List[dict]:
-
     sql_from_table = 'select distinct series.seriesId as seriesId, seriesName, userId, isFinished, abstract, likes, views, shares, collect, series.createTime as createTime from series '
     arg_list = []
     sql = sql_from_table
@@ -136,8 +135,6 @@ def __query_series_brief_sql(query_param: dict) -> List[dict]:
     rows = execute_sql_query(pooldb, sql, tuple(arg_list))
 
     return rows
-
-
 
 
 @bp.route('/getSeriesBrief', methods=['GET'])
@@ -173,7 +170,7 @@ def get_series_brief():
         for i in range(len(rows)):
             rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
             rows[i]['user'] = get_user_by_id(rows[i]['userId'])
-            rows[i]['tag'] = get_tags_by_seriesId_sql(rows[i]['seriesId'])
+            rows[i]['tag'] = __get_tags_by_seriesId_sql(rows[i]['seriesId'])
 
         return build_success_response(data=rows, length=length)
 
@@ -210,7 +207,7 @@ def get_pieces_detail():
             piece['createTime'] = piece['createTime'].strftime('%Y-%m-%d %H:%M:%S')
         if 'updateTime' in piece:
             piece['updateTime'] = piece['updateTime'].strftime('%Y-%m-%d %H:%M:%S')
-        tag_list = get_tags_by_seriesId_sql(piece['seriesId'])
+        tag_list = __get_tags_by_seriesId_sql(piece['seriesId'])
         piece['tag'] = tag_list
         piece['user'] = get_user_by_id(piece['userId'])
 
@@ -232,7 +229,8 @@ def get_series_detail():
 
 
 def __get_series_by_user_id(user_id: int) -> list:
-    return execute_sql_query(pooldb,"select * from series where userId = %s", user_id)
+    return execute_sql_query(pooldb, "select * from series where userId = %s", user_id)
+
 
 @bp.route('/getUserSeriesList', methods=['GET'])
 def get_user_series_list():
@@ -421,6 +419,7 @@ def __update_series_sql(data: dict):
             args_list.append(['abstract', data['abstract']])
         if 'userId' in data:
             args_list.append(['userId', data['userId']])
+
         param_list = []
         if len(args_list):
             sql += f'{args_list[0][0]}=%s '
@@ -431,7 +430,28 @@ def __update_series_sql(data: dict):
         sql += ' where seriesId = %s'
         param_list.append(data['seriesId'])
 
-        seriesId = execute_sql_write(pooldb, sql, tuple(param_list))
+        # seriesId = execute_sql_write(pooldb, sql, tuple(param_list))
+
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        trans.execute(sql, tuple(param_list))
+
+        if 'tag' in data:
+            seriesId = data['seriesId']
+            new_tags = data['tag']
+            # 检查tag
+            tags_list = __get_tags_by_seriesId_sql(seriesId)
+            origin_tag_id_list = map(lambda x: x['tagId'], tags_list)
+            new_tag_id_list = map(lambda x: x['tagId'], new_tags)
+            origin_tag_id_set = set(origin_tag_id_list)
+            new_tag_id_set = set(new_tag_id_list)
+            tag_id_add_list = list(new_tag_id_set - origin_tag_id_set)
+            tag_id_remove_list = list(origin_tag_id_set - new_tag_id_set)
+            for tagId in tag_id_add_list:
+                __add_tag_series_relation_sql(trans, tagId, seriesId)
+            for tagId in tag_id_remove_list:
+                __del_tag_series_relation_sql(trans, tagId, seriesId)
+        trans.commit()
 
     except Exception as e:
         check.printException(e)
@@ -575,6 +595,7 @@ def add_tag():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+
 def __get_all_tag_series(tagId: str) -> List[Dict]:
     sql = 'select ' \
           'series.seriesId as seriesId, ' \
@@ -588,6 +609,7 @@ def __get_all_tag_series(tagId: str) -> List[Dict]:
           'and series.userId = users.id'
     rows = execute_sql_query(pooldb, sql, tagId)
     return rows
+
 
 @bp.route('/tag/getAllTagSeries', methods=['GET'])
 def get_all_tag_series():
@@ -613,16 +635,20 @@ def get_all_tag_series():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
-def __del_series_relation_sql(tagId: str, seriesId: str):
-    sql = 'delete from tag_series where tagId = %s and seriesId = %s'
-    execute_sql_write(pooldb, sql, (tagId, seriesId))
 
-def __update_tag_linked_times_sql(tagId: str):
+def __del_tag_series_relation_sql(trans: SqlTransaction, tagId: str, seriesId: str):
+    sql = 'delete from tag_series where tagId = %s and seriesId = %s'
+    trans.execute(sql, (tagId, seriesId))
+
+
+def __update_tag_linked_times_sql(trans: SqlTransaction, tagId: str):
     sql = 'update tags ' \
           'set linkedTimes = ' \
           '(select count(*) from tag_series where tag_series.tagId = %s) ' \
           'where tags.tagId = %s'
-    execute_sql_write(pooldb, sql, (tagId, tagId))
+    # execute_sql_write(pooldb, sql, (tagId, tagId))
+    trans.execute(sql, (tagId, tagId))
+
 
 @bp.route('/tag/delSeriesRelation', methods=['GET'])
 def del_tag_series_relation():
@@ -649,10 +675,13 @@ def del_tag_series_relation():
             # 如果前端发来的seriesId不是用户自己的，则验证manager权限
             check_user_before_request(request, roles='manager')
 
+        trans = SqlTransaction(pooldb)
+        trans.begin()
         # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
-        __del_series_relation_sql(tagId, seriesId)
+        __del_tag_series_relation_sql(trans, tagId, seriesId)
         # 更新一下tag的被引用次数
-        __update_tag_linked_times_sql(tagId)
+        __update_tag_linked_times_sql(trans, tagId)
+        trans.commit()
 
         return build_success_response()
 
@@ -662,3 +691,48 @@ def del_tag_series_relation():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+
+def __add_tag_series_relation_sql(trans: SqlTransaction, tagId: str, seriesId: str):
+    sql = 'insert into tag_series(tagId, seriesId) values(%s, %s) '
+    trans.execute(sql, (tagId, seriesId))
+
+@bp.route('/tag/addSeriesRelation', methods=['GET'])
+def add_tag_series_relation():
+    """
+    获取与该tag标记过的series的联系
+    """
+    try:
+        tagId = request.args.get('tagId')
+        seriesId = request.args.get('seriesId')
+        if tagId is None or seriesId is None:
+            raise NetworkException(400, "前端数据错误，缺少tagId或seriesId")
+        # 先验证登录，并查看是否具有common权限
+        user = check_user_before_request(request)
+        # 拿到属于该用户的所有series
+        user_series_list = __get_series_by_user_id(user['id'])
+        is_find = False
+        # 遍历寻找前端发来的seriesId是否是用户自己的
+        for series in user_series_list:
+            if series['seriesId'] == seriesId:
+                is_find = True
+                break
+
+        if not is_find:
+            # 如果前端发来的seriesId不是用户自己的，则验证manager权限
+            check_user_before_request(request, roles='manager')
+
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
+        __add_tag_series_relation_sql(trans, tagId, seriesId)
+        # 更新一下tag的被引用次数
+        __update_tag_linked_times_sql(trans, tagId)
+        trans.commit()
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
