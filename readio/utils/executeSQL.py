@@ -91,10 +91,12 @@ class SqlTransaction:
         self.cursor = cursor
 
     def commit(self):
+        self.check_null_exception()
         self.conn.commit()
         self.pooldb.close_conn(self.conn, self.cursor)
 
     def rollback(self):
+        self.check_null_exception()
         self.conn.rollback()
         self.pooldb.close_conn(self.conn, self.cursor) if self.conn is not None else None
 
@@ -107,6 +109,7 @@ class SqlTransaction:
         :return: 如果是插入操作，返回插入记录的自增主键 ID；如果是更新或删除操作，返回 None。
         :raises Exception: 如果执行 SQL 失败，将抛出此异常。
         """
+        self.check_null_exception()
         try:
             # 执行 SQL
             self.cursor.execute(sql, *args)
@@ -119,5 +122,8 @@ class SqlTransaction:
             self.rollback()
             raise e
 
+    def check_null_exception(self):
+        if self.conn is None or self.cursor is None:
+            raise Exception("[ERROR] SqlTransaction NullException :: 事务未开启或已结束")
 
 

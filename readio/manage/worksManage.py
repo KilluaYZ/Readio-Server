@@ -269,7 +269,7 @@ def add_pieces():
     return build_success_response()
 
 
-def __add_series_sql(data: dict):
+def __add_series_sql(data: dict, trans=None):
     try:
         sql = 'insert into series('
         args_list = []
@@ -291,9 +291,11 @@ def __add_series_sql(data: dict):
             value_sql += ' ,%s '
         sql += f') values({value_sql})'
 
-        print(sql)
-        seriesId = execute_sql_write(pooldb, sql, tuple(args_list))
-        print(f'add series id {seriesId}')
+        if trans is None:
+            id_ = execute_sql_write(pooldb, sql, tuple(args_list))
+        else:
+            id_ = trans.execute(sql, tuple(args_list))
+        return id_
 
     except Exception as e:
         check.printException(e)
@@ -319,7 +321,18 @@ def add_series():
         if seriesName is None:
             raise NetworkException(code=400, msg='前端数据错误，缺少seriesName')
 
-        __add_series_sql(request.json)
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        seriesId = __add_series_sql(request.json, trans)
+        # print(f'[DEBUG] seriesId = {seriesId}')
+
+        tags_list = request.json.get('tag')
+        if tags_list is not None:
+            for tag in tags_list:
+                __add_tag_series_relation_sql(tag['tagId'], seriesId, trans)
+                __update_tag_linked_times_sql(tag['tagId'], trans)
+
+        trans.commit()
 
         return build_success_response(msg='添加系列成功')
 
@@ -448,9 +461,9 @@ def __update_series_sql(data: dict):
             tag_id_add_list = list(new_tag_id_set - origin_tag_id_set)
             tag_id_remove_list = list(origin_tag_id_set - new_tag_id_set)
             for tagId in tag_id_add_list:
-                __add_tag_series_relation_sql(trans, tagId, seriesId)
+                __add_tag_series_relation_sql(tagId, seriesId, trans)
             for tagId in tag_id_remove_list:
-                __del_tag_series_relation_sql(trans, tagId, seriesId)
+                __del_tag_series_relation_sql(tagId, seriesId, trans)
         trans.commit()
 
     except Exception as e:
@@ -636,18 +649,24 @@ def get_all_tag_series():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
-def __del_tag_series_relation_sql(trans: SqlTransaction, tagId: str, seriesId: str):
+def __del_tag_series_relation_sql(tagId: str, seriesId: str, trans=None):
     sql = 'delete from tag_series where tagId = %s and seriesId = %s'
-    trans.execute(sql, (tagId, seriesId))
+    if trans is None:
+        execute_sql_write(pooldb, sql, (tagId, seriesId))
+    else:
+        trans.execute(sql, (tagId, seriesId))
 
 
-def __update_tag_linked_times_sql(trans: SqlTransaction, tagId: str):
+def __update_tag_linked_times_sql(tagId: str, trans=None):
     sql = 'update tags ' \
           'set linkedTimes = ' \
           '(select count(*) from tag_series where tag_series.tagId = %s) ' \
           'where tags.tagId = %s'
     # execute_sql_write(pooldb, sql, (tagId, tagId))
-    trans.execute(sql, (tagId, tagId))
+    if trans is None:
+        execute_sql_write(pooldb, sql, (tagId, tagId))
+    else:
+        trans.execute(sql, (tagId, tagId))
 
 
 @bp.route('/tag/delSeriesRelation', methods=['GET'])
@@ -678,9 +697,9 @@ def del_tag_series_relation():
         trans = SqlTransaction(pooldb)
         trans.begin()
         # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
-        __del_tag_series_relation_sql(trans, tagId, seriesId)
+        __del_tag_series_relation_sql(tagId, seriesId, trans)
         # 更新一下tag的被引用次数
-        __update_tag_linked_times_sql(trans, tagId)
+        __update_tag_linked_times_sql(tagId, trans)
         trans.commit()
 
         return build_success_response()
@@ -692,9 +711,12 @@ def del_tag_series_relation():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
-def __add_tag_series_relation_sql(trans: SqlTransaction, tagId: str, seriesId: str):
+def __add_tag_series_relation_sql(tagId: str, seriesId: str, trans=None):
     sql = 'insert into tag_series(tagId, seriesId) values(%s, %s) '
-    trans.execute(sql, (tagId, seriesId))
+    if trans is None:
+        execute_sql_write(pooldb, sql, (tagId, seriesId))
+    else:
+        trans.execute(sql, (tagId, seriesId))
 
 @bp.route('/tag/addSeriesRelation', methods=['GET'])
 def add_tag_series_relation():
@@ -724,9 +746,9 @@ def add_tag_series_relation():
         trans = SqlTransaction(pooldb)
         trans.begin()
         # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
-        __add_tag_series_relation_sql(trans, tagId, seriesId)
+        __add_tag_series_relation_sql(tagId, seriesId, trans)
         # 更新一下tag的被引用次数
-        __update_tag_linked_times_sql(trans, tagId)
+        __update_tag_linked_times_sql(tagId, trans)
         trans.commit()
 
         return build_success_response()
