@@ -180,7 +180,7 @@ def get_series_brief():
 
 
 def __get_pieces_by_id_sql(piecesId: int) -> dict:
-    return execute_sql_query_one(
+    return execute_sql_query_one(pooldb,
         'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as '
         'userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, '
         'pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
