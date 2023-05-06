@@ -382,8 +382,6 @@ def build_post_response_data(postID_list:list):
             keyword_data = query_post_all_keywords(postID)
             post_data['postTag'] = tag_data
             post_data['postKeywords'] = keyword_data
-            if not isinstance(post_data['postTime'],str):
-                post_data['postTime'] = post_data['postTime'].strftime('%Y-%m-%d')
             res.append(post_data)
     return res
 

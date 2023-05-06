@@ -168,10 +168,6 @@ def profile():
         if request.method == 'GET':
             user = check_user_before_request(request)
 
-            # 格式化datetime
-            if not isinstance(user['createTime'], str):
-                user['createTime'] = user['createTime'].strftime('%Y-%m-%d %H:%M:%S')
-
             response = {
                 "userInfo": {
                     "userId": user['id'],

@@ -13,7 +13,7 @@ from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
 from readio.monitor.monitor import monitor
 from readio.manage import fileManage, worksManage, userManage
-
+from readio.utils.json import CustomJSONEncoder
 
 # 创建flask app
 def create_app():
@@ -21,6 +21,7 @@ def create_app():
     app = Flask(__name__, instance_relative_config=True)
     CORS(app)
 
+    app.json_encoder = CustomJSONEncoder
     # a simple page that says hello
     @app.route('/hello')
     def hello():

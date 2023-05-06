@@ -508,10 +508,6 @@ def getResInfo():
             pageNum = int(pageNum)
             rows = rows[(pageNum - 1) * pageSize:pageNum * pageSize]
 
-        for i in range(len(rows)):
-            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
-            rows[i]['visitTime'] = rows[i]['visitTime'].strftime('%Y-%m-%d %H:%M:%S')
-
         return build_success_response(data=rows, length=length)
 
     except NetworkException as e:

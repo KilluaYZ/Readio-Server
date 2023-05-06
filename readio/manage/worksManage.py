@@ -22,7 +22,7 @@ bp = Blueprint('worksManage', __name__, url_prefix='/works')
 pooldb = readio.database.connectPool.pooldb
 
 
-def random_get_pieces_brief_sql(size: int) -> list:
+def __random_get_pieces_brief_sql(size: int) -> list:
     try:
         conn, cursor = pooldb.get_conn()
         cursor.execute('select piecesId, seriesId, title, userId, state, content, likes, views, shares from pieces')
@@ -41,7 +41,7 @@ def random_get_pieces_brief_sql(size: int) -> list:
             pooldb.close_conn(conn, cursor)
 
 
-def __get_tags_by_seriesId_sql(seriesId: int) -> list:
+def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
     try:
         # print(f'[DEBUG] seriesId = {seriesId} type = {type(seriesId)}')
         conn, cursor = pooldb.get_conn()
@@ -49,9 +49,24 @@ def __get_tags_by_seriesId_sql(seriesId: int) -> list:
                        'tag_series.seriesId = %s  and tag_series.tagId = tags.tagId', seriesId)
 
         rows = cursor.fetchall()
+        if mode == 'default':
+            pass
+        elif mode == 'hot':
+            max_linked_id = 0
+            max_linked_tag = None
+            for tag in rows:
+                if tag['linkedTimes'] >= max_linked_id:
+                    max_linked_id = tag['linkedTimes']
+                    max_linked_tag = tag
+            if max_linked_tag is not None:
+                rows = [max_linked_tag]
+            else:
+                rows = []
+
         for i in range(len(rows)):
             rows[i]['type'] = 'primary'
         # print(f'[DEBUG] rows = {rows}')
+
         return rows
 
     except Exception as e:
@@ -62,36 +77,77 @@ def __get_tags_by_seriesId_sql(seriesId: int) -> list:
             pooldb.close_conn(conn, cursor)
 
 
+def __query_pieces_sql(query_param: dict) -> List[Dict]:
+    sql_select = 'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
+          'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
+          'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
+          'pieces.state as state, pieces.likes as likes, pieces.views as views, ' \
+          'pieces.shares as shares from pieces '
+
+    args_str_list = []
+    args_val_list = []
+
+    if 'piecesId' in query_param:
+        args_str_list.append(' and piecesId = %s ')
+        args_val_list.append(query_param['piecesId'])
+    if 'title' in query_param:
+        args_str_list.append(' and title like %s ')
+        args_val_list.append(f'%{query_param["title"]}%')
+    if 'content' in query_param:
+        args_str_list.append(' and content like %s ')
+        args_val_list.append(f'%{query_param["content"]}%')
+    if 'userName' in query_param:
+        sql_select += " , users "
+        args_str_list.append(' and users.id = pieces.userId and users.userName like %s ')
+        args_val_list.append(f'%{query_param["userName"]}%')
+    sql = sql_select
+    if len(args_str_list):
+        sql += ' where 1=1 '
+    for item in args_str_list:
+        sql += item
+
+    rows = execute_sql_query(pooldb, sql, tuple(args_val_list))
+    return rows
+
 @bp.route('/getPiecesBrief', methods=['GET'])
 def get_bref():
     """
     获取一章简略信息
     """
     try:
-        data = request.args
-        # 默认每次随机返回15条数据
-        mode = 'random'
-        size = 15
+        mode = request.args.get('mode')
+        if mode is None or mode == 'random':
+            size = request.args.get('size')
+            if size is None:
+                size = 15
+            rows = __random_get_pieces_brief_sql(size)
 
-        if 'mode' in data:
-            mode = data['mode']
+            # 查找最热门的标签
+            for i in range(len(rows)):
+                max_linked_tag = __get_tags_by_seriesId_sql(int(rows[i]['seriesId']), 'hot')
+                if len(max_linked_tag):
+                    rows[i]['tag'] = max_linked_tag[0]
+                else:
+                    rows[i]['tag'] = None
+        elif mode == 'query':
+            rows = __query_pieces_sql(request.args)
+            print(f'[DEBUG] 拿到了pieces数据，共{len(rows)}条')
+            pageSize = request.args.get('pageSize')
+            pageNum = request.args.get('pageNum')
+            if pageNum is not None and pageSize is not None:
+                pageSize = int(pageSize)
+                pageNum = int(pageNum)
+                rows = rows[pageSize*(pageNum - 1): pageSize * pageNum]
+            print('[DEBUG] 分页完成')
+            for i in range(len(rows)):
+                seriesId = rows[i].get('seriesId')
+                if seriesId is not None:
+                    series = __query_series_brief_sql({"seriesId": seriesId})
+                    if series is not None and len(series):
+                        rows[i]['series'] = series[0]
+                    tag_list = __get_tags_by_seriesId_sql(seriesId)
+                    rows[i]['tag'] = tag_list
 
-        if 'size' in data:
-            size = data['size']
-
-        if mode == 'random':
-            rows = random_get_pieces_brief_sql(size)
-        # 查找最热门的标签
-        for i in range(len(rows)):
-            tag_list = __get_tags_by_seriesId_sql(int(rows[i]['seriesId']))
-            if (len(tag_list)):
-                max_linked_id = 0
-                max_linked_tag = None
-                for tag in tag_list:
-                    if tag['linkedTimes'] >= max_linked_id:
-                        max_linked_id = tag['linkedTimes']
-                        max_linked_tag = tag
-                rows[i]['tag'] = max_linked_tag
         # 查找对应的用户
         for i in range(len(rows)):
             rows[i]['user'] = get_user_by_id(rows[i]['userId'])
@@ -100,6 +156,9 @@ def get_bref():
         for i in range(len(rows)):
             rows[i]['content'] = rows[i]['content'][:40]
         return build_success_response(rows)
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
         check.printException(e)
@@ -168,7 +227,6 @@ def get_series_brief():
             rows = rows[(pageNum - 1) * pageSize:pageNum * pageSize]
 
         for i in range(len(rows)):
-            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
             rows[i]['user'] = get_user_by_id(rows[i]['userId'])
             rows[i]['tag'] = __get_tags_by_seriesId_sql(rows[i]['seriesId'])
 
@@ -180,13 +238,14 @@ def get_series_brief():
 
 
 def __get_pieces_by_id_sql(piecesId: int) -> dict:
-    return execute_sql_query_one(pooldb,
-        'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as '
-        'userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, '
-        'pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
-        'series.seriesName as seriesName from pieces, series where piecesId = %s and pieces.seriesId = '
-        'series.seriesId ',
-        piecesId)
+    # return execute_sql_query_one(pooldb,
+    #     'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as '
+    #     'userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, '
+    #     'pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
+    #     'series.seriesName as seriesName from pieces, series where piecesId = %s and pieces.seriesId = '
+    #     'series.seriesId ',
+    #     piecesId)
+    return execute_sql_query_one(pooldb, 'select * from pieces where piecesId = %s', piecesId)
 
 
 @bp.route('/getPiecesDetail', methods=['GET'])
@@ -203,13 +262,14 @@ def get_pieces_detail():
         piece = __get_pieces_by_id_sql(pieceId)
         if piece is None:
             raise NetworkException(404, '该章节不存在')
-        if 'createTime' in piece:
-            piece['createTime'] = piece['createTime'].strftime('%Y-%m-%d %H:%M:%S')
-        if 'updateTime' in piece:
-            piece['updateTime'] = piece['updateTime'].strftime('%Y-%m-%d %H:%M:%S')
         tag_list = __get_tags_by_seriesId_sql(piece['seriesId'])
         piece['tag'] = tag_list
         piece['user'] = get_user_by_id(piece['userId'])
+        piece['series'] = {}
+        if 'seriesId' in piece and piece['seriesId'] is not None:
+            seriesList = __query_series_brief_sql({"seriesId": piece['seriesId']})
+            if seriesList is not None and len(seriesList):
+                piece['series'] = seriesList[0]
 
         return build_success_response(piece)
 
@@ -240,8 +300,6 @@ def get_user_series_list():
     try:
         user = check_user_before_request(request)
         series_list = __get_series_by_user_id(user['id'])
-        for i in range(len(series_list)):
-            series_list[i]['createTime'] = series_list[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(series_list)
 
@@ -462,8 +520,11 @@ def __update_series_sql(data: dict):
             tag_id_remove_list = list(origin_tag_id_set - new_tag_id_set)
             for tagId in tag_id_add_list:
                 __add_tag_series_relation_sql(tagId, seriesId, trans)
+                __update_tag_linked_times_sql(tagId, trans)
             for tagId in tag_id_remove_list:
                 __del_tag_series_relation_sql(tagId, seriesId, trans)
+                __update_tag_linked_times_sql(tagId, trans)
+
         trans.commit()
 
     except Exception as e:
@@ -534,9 +595,6 @@ def get_tag():
             pageSize = int(pageSize)
             pageNum = int(pageNum)
             rows = rows[pageSize * (pageNum - 1): pageSize * pageNum]
-
-        for i in range(len(rows)):
-            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(data=rows, length=length)
     except NetworkException as e:
@@ -636,9 +694,6 @@ def get_all_tag_series():
 
         check_user_before_request(request)
         rows = __get_all_tag_series(tagId)
-        for i in range(len(rows)):
-            print(f'[DEBUG] {rows[i]}')
-            rows[i]['createTime'] = rows[i]['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(data=rows, length=len(rows))
 

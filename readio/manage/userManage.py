@@ -64,8 +64,6 @@ def userList():
 
         response = []
         for row in rows:
-            if not isinstance(row['createTime'], str):
-                row['createTime'] = row['createTime'].strftime('%Y-%m-%d %H:%M:%S')
 
             response.append({
                 "userName": row['userName'],
@@ -230,8 +228,6 @@ def getUser():
         user = get_user_by_id(data['userId'])
         if user is None:
             user = {}
-        if 'createTime' in user:
-            user['createTime'] = user['createTime'].strftime('%Y-%m-%d %H:%M:%S')
         user['userId'] = user['id']
         return build_success_response(user)
 
@@ -269,9 +265,6 @@ def getOnlineUser():
         length = len(rows)
         # rows = rows[(pageNum-1)*pageSize:pageNum*pageSize]
 
-        for row in rows:
-            if not isinstance(row['loginTime'], str):
-                row['loginTime'] = row['loginTime'].strftime('%Y-%m-%d %H:%M:%S')
 
         return build_success_response(data=rows, length=length)
 

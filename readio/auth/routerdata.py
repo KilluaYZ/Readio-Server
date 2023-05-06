@@ -38,10 +38,22 @@ admin_router_data = [
                 }
             },
             {
-                "name": "Post",
-                "path": "post",
+                "name": "Series",
+                "path": "seires",
                 "hidden": False,
-                "component": "manage/post/index",
+                "component": "manage/series/index",
+                "meta": {
+                    "title": "系列管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
+                "name": "Pieces",
+                "path": "pieces",
+                "hidden": False,
+                "component": "manage/pieces/index",
                 "meta": {
                     "title": "帖子管理",
                     "icon": "dict",
@@ -61,30 +73,19 @@ admin_router_data = [
                     "link": None
                 }
             },
-            {
-                "name": "Series",
-                "path": "seires",
-                "hidden": False,
-                "component": "manage/series/index",
-                "meta": {
-                    "title": "系列管理",
-                    "icon": "dict",
-                    "noCache": False,
-                    "link": None
-                }
-            },
-            {
-                "name": "Visualization",
-                "path": "visualization",
-                "hidden": False,
-                "component": "manage/visualization/index",
-                "meta": {
-                    "title": "可视化界面",
-                    "icon": "tree",
-                    "noCache": False,
-                    "link": None
-                }
-            },
+
+            # {
+            #     "name": "Visualization",
+            #     "path": "visualization",
+            #     "hidden": False,
+            #     "component": "manage/visualization/index",
+            #     "meta": {
+            #         "title": "可视化界面",
+            #         "icon": "tree",
+            #         "noCache": False,
+            #         "link": None
+            #     }
+            # },
         ]
     },
     {
@@ -170,10 +171,22 @@ manager_router_data = [
                 }
             },
             {
-                "name": "Post",
-                "path": "post",
+                "name": "Series",
+                "path": "seires",
                 "hidden": False,
-                "component": "manage/post/index",
+                "component": "manage/series/index",
+                "meta": {
+                    "title": "系列管理",
+                    "icon": "dict",
+                    "noCache": False,
+                    "link": None
+                }
+            },
+            {
+                "name": "Pieces",
+                "path": "pieces",
+                "hidden": False,
+                "component": "manage/pieces/index",
                 "meta": {
                     "title": "帖子管理",
                     "icon": "dict",
@@ -193,30 +206,19 @@ manager_router_data = [
                     "link": None
                 }
             },
-            {
-                "name": "Series",
-                "path": "seires",
-                "hidden": False,
-                "component": "manage/series/index",
-                "meta": {
-                    "title": "系列管理",
-                    "icon": "dict",
-                    "noCache": False,
-                    "link": None
-                }
-            },
-            {
-                "name": "Visualization",
-                "path": "visualization",
-                "hidden": False,
-                "component": "manage/visualization/index",
-                "meta": {
-                    "title": "可视化界面",
-                    "icon": "tree",
-                    "noCache": False,
-                    "link": None
-                }
-            },
+
+            # {
+            #     "name": "Visualization",
+            #     "path": "visualization",
+            #     "hidden": False,
+            #     "component": "manage/visualization/index",
+            #     "meta": {
+            #         "title": "可视化界面",
+            #         "icon": "tree",
+            #         "noCache": False,
+            #         "link": None
+            #     }
+            # },
         ]
     }
     # ,
@@ -249,42 +251,42 @@ common_router_data = [
             "link": None
         },
         "children": [
-            {
-                "name": "Tag",
-                "path": "tag",
-                "hidden": False,
-                "component": "manage/tag/index",
-                "meta": {
-                    "title": "标签管理",
-                    "icon": "dict",
-                    "noCache": False,
-                    "link": None
-                }
-            },
-            {
-                "name": "Post",
-                "path": "post",
-                "hidden": False,
-                "component": "manage/post/index",
-                "meta": {
-                    "title": "帖子管理",
-                    "icon": "dict",
-                    "noCache": False,
-                    "link": None
-                }
-            },
-            {
-                "name": "Visualization",
-                "path": "visualization",
-                "hidden": False,
-                "component": "manage/visualization/index",
-                "meta": {
-                    "title": "可视化界面",
-                    "icon": "tree",
-                    "noCache": False,
-                    "link": None
-                }
-            },
+            # {
+            #     "name": "Tag",
+            #     "path": "tag",
+            #     "hidden": False,
+            #     "component": "manage/tag/index",
+            #     "meta": {
+            #         "title": "标签管理",
+            #         "icon": "dict",
+            #         "noCache": False,
+            #         "link": None
+            #     }
+            # },
+            # {
+            #     "name": "Post",
+            #     "path": "post",
+            #     "hidden": False,
+            #     "component": "manage/post/index",
+            #     "meta": {
+            #         "title": "帖子管理",
+            #         "icon": "dict",
+            #         "noCache": False,
+            #         "link": None
+            #     }
+            # },
+            # {
+            #     "name": "Visualization",
+            #     "path": "visualization",
+            #     "hidden": False,
+            #     "component": "manage/visualization/index",
+            #     "meta": {
+            #         "title": "可视化界面",
+            #         "icon": "tree",
+            #         "noCache": False,
+            #         "link": None
+            #     }
+            # },
         ]
     }
     # ,
