@@ -82,7 +82,7 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
           'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
           'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
           'pieces.state as state, pieces.likes as likes, pieces.views as views, ' \
-          'pieces.shares as shares from pieces '
+          'pieces.shares as shares, pieces.collect as collect from pieces '
 
     args_str_list = []
     args_val_list = []
@@ -96,17 +96,26 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     if 'content' in query_param:
         args_str_list.append(' and content like %s ')
         args_val_list.append(f'%{query_param["content"]}%')
-    if 'userName' in query_param:
+    if 'userId' in query_param or 'userName' in query_param:
         sql_select += " , users "
-        args_str_list.append(' and users.id = pieces.userId and users.userName like %s ')
-        args_val_list.append(f'%{query_param["userName"]}%')
+        args_str_list.append(' and users.id = pieces.userId ')
+        if 'userName' in query_param:
+            args_str_list.append(' and users.userName like %s ')
+            args_val_list.append(f'%{query_param["userName"]}%')
+        if 'userId' in query_param:
+            args_str_list.append(' and users.id = %s ')
+            args_val_list.append(f'{query_param["userId"]}')
+
     sql = sql_select
     if len(args_str_list):
         sql += ' where 1=1 '
     for item in args_str_list:
         sql += item
-
+    # print(f'[DEBUG] sql = {sql}')
+    # print(f'[DEBUG] userId = {query_param["userId"]}')
+    # print(f'[DEBUG] args_val_list = {args_val_list}')
     rows = execute_sql_query(pooldb, sql, tuple(args_val_list))
+    # print(f'[DEBUG] rows = {rows}')
     return rows
 
 @bp.route('/getPiecesBrief', methods=['GET'])
@@ -189,6 +198,10 @@ def __query_series_brief_sql(query_param: dict) -> List[dict]:
             sql += ' order by series.likes desc '
         elif query_param['sortMode'] == 'New':
             sql += ' order by series.createTime desc '
+        else:
+            sql += ' order by series.seriesName asc '
+    else:
+        sql += ' order by series.seriesName asc '
 
     # print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, tuple(arg_list))
@@ -315,8 +328,27 @@ def get_user_pieces_list():
     """
     获取属于用户的所有篇章的列表（不包括内容）
     """
+    try:
+        user = check_user_before_request(request)
+        rows = __query_pieces_sql({"userId": user['id']})
 
-    return build_success_response()
+        for i in range(len(rows)):
+            rows[i]['comment'] = 123
+            seriesId = rows[i].get('seriesId')
+            if seriesId is not None:
+                series = __query_series_brief_sql({"seriesId": seriesId})
+                if series is not None and len(series):
+                    rows[i]['series'] = series[0]
+                tag_list = __get_tags_by_seriesId_sql(seriesId)
+                rows[i]['tag'] = tag_list
+
+        return build_success_response(rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
 
 
 @bp.route('/addPieces', methods=['POST'])
