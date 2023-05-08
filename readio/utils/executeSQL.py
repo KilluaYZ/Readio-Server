@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 from readio.utils.myExceptions import NetworkException
 from readio.utils import check
 
+
 # 读取数据库
 def execute_sql_query(pooldb, sql: str, *args) -> List[dict]:
     """
@@ -79,12 +80,15 @@ def execute_sql_write(pooldb, sql: str, *args) -> Optional[int]:
         # 关闭数据库连接和游标对象
         pooldb.close_conn(conn, cursor) if conn is not None else None
 
+
 class SqlTransaction:
     """
-    用来执行事物
+    用来执行事务
     """
+
     def __init__(self, pooldb):
         self.pooldb = pooldb
+
     def begin(self):
         conn, cursor = self.pooldb.get_conn()
         self.conn = conn
@@ -125,5 +129,3 @@ class SqlTransaction:
     def check_null_exception(self):
         if self.conn is None or self.cursor is None:
             raise Exception("[ERROR] SqlTransaction NullException :: 事务未开启或已结束")
-
-

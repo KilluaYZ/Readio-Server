@@ -124,33 +124,6 @@ def get_comment_replies_sql(comment_id: int) -> List[dict]:
     return comment_list
 
 
-def get_comment_tree_recursive(comment_id: int, depth: int) -> List[dict]:
-    """
-    递归查询指定评论的子评论树
-
-    :param comment_id: 指定评论的 ID
-    :param depth: 查询深度，即子评论的层数
-    :return: 子评论树列表，每个元素为一个字典表示一个评论及其子评论
-    """
-    if depth <= 0:
-        return []
-
-    # 查询该评论的直接子评论
-    reply_list = get_comment_replies_sql(comment_id)
-    # 递归
-    comment_tree = []
-    for reply in reply_list:
-        reply_id = reply['commentId']
-        reply_cmt = get_comment_sql(reply_id)
-        sub_tree = reply_cmt
-        replies = get_comment_tree_recursive(reply_id, depth - 1)
-        sub_tree['size'] = len(replies)
-        sub_tree['replies'] = replies
-        comment_tree.append(sub_tree)
-
-    return comment_tree
-
-
 def get_sub_comment_ids_stack(root_id: int) -> List[int]:
     """
     使用栈遍历获取指定评论的所有子评论 id
@@ -175,19 +148,77 @@ def get_sub_comment_ids_stack(root_id: int) -> List[int]:
     return result
 
 
-def get_comment_details(comment_id, depth):
+def get_comment_tree_recursive(comment_id: int, depth: int, user) -> List[dict]:
+    """
+    递归查询指定评论的子评论树
+
+    :param comment_id: 指定评论的 ID
+    :param depth: 查询深度，即子评论的层数
+    :return: 子评论树列表，每个元素为一个字典表示一个评论及其子评论
+    """
+    if depth <= 0:
+        return []
+
+    # 查询该评论的直接子评论
+    reply_list = get_comment_replies_sql(comment_id)
+    # 递归
+    comment_tree = []
+    for reply in reply_list:
+        reply_id = reply['commentId']
+        reply_cmt = get_comment_sql(reply_id)
+        sub_tree = reply_cmt
+        sub_tree['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
+        replies = get_comment_tree_recursive(reply_id, depth - 1, user)
+        sub_tree['size'] = len(replies)
+        sub_tree['replies'] = replies
+        comment_tree.append(sub_tree)
+
+    return comment_tree
+
+
+def get_sub_comments_stack(comment_id: int, user) -> List[dict]:
+    """
+    使用栈遍历获取指定评论的所有子评论 id，包含回复
+
+    :param comment_id: 指定评论的 ID
+    :return: 子评论列表，每个元素为一个字典表示一条评论
+    """
+    # 创建一个栈，将待处理的评论 id 加入栈中
+    stack = [comment_id]
+    # 存储所有子评论的 id
+    result = []
+
+    # 不断从栈中弹出评论 id 并处理，直到栈为空
+    while stack:
+        comment_id = stack.pop()  # 弹出最新加入栈中的评论 id
+        reply_list = get_comment_replies_sql(comment_id)  # 获取当前评论的所有子评论
+        for reply in reply_list:
+            reply_id = reply['commentId']  # 获取子评论的 id
+            reply_cmt = get_comment_sql(reply_id)
+            reply_cmt['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
+            reply_cmt['reply_to'] = comment_id
+            stack.append(reply_id)  # 将子评论 id 加入栈中，以便后续处理
+            result.append(reply_cmt)  # 将子评论加入结果列表中
+
+    return result
+
+
+def get_comment_details(comment_id, depth, user=None):
     """ 获取评论详细信息，包括其子评论信息 """
     # 获取评论
     comment = get_comment_sql(comment_id)
 
     # 获取子评论列表
     sub_comment_list = []
-    if depth > 0:
-        sub_comment_list = get_comment_tree_recursive(comment_id, depth - 1)
+    if depth is not None:  # 递归模式，返回树型结构
+        sub_comment_list = get_comment_tree_recursive(comment_id, depth - 1, user)
+    else:  # 栈模式，返回两层结构
+        sub_comment_list = get_sub_comments_stack(comment_id, user)
 
     # 组织结果
     details = comment
     details['size'] = len(sub_comment_list)
+    details['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], comment_id)
     details['comments'] = sub_comment_list
     return details
 
@@ -409,6 +440,8 @@ def reply_comment(book_id):
             # 检查 URL 与请求参数是否一致，且保证非空
             if bid is None or str(bid) != str(book_id):
                 raise NetworkException(400, 'Invalid bookId')
+            if content is None:
+                raise NetworkException(400, '请填写评论内容')
             # 检查是否有这条评论
             if check_exist_comment(pooldb, cid):
                 reply_comment_sql(uid, cid, content)
@@ -468,6 +501,8 @@ def del_replies(book_id):
             # 检查 URL 与请求参数是否一致，且保证非空
             if bid is None or str(bid) != str(book_id):
                 raise NetworkException(400, 'Invalid bookId')
+            if not cid:
+                raise NetworkException(400, 'commentId 缺失')
             # 检查用户是否有这条评论
             if check_has_comment(pooldb, uid, cid):
                 del_replies_sql(uid, cid)
@@ -490,9 +525,12 @@ def index_comment(book_id, comment_id):
         try:
             if not check_exist_comment_for_book(pooldb, book_id, comment_id):
                 raise NetworkException(400, '该书没有这条评论')
-            # 递归深度默认为 6
-            depth = int(request.headers.get('depth', 6))
-            comment_details = get_comment_details(comment_id, depth=depth)
+            # 检查是否有用户 token ，有返回用户，否则返回 None
+            user = check_user_before_request(request, raise_exc=False)
+            easymode = request.headers.get('easymode', 'True').lower() == 'true'
+            depth = None if easymode is True else int(request.headers.get('depth', 6))
+            # print(type(easymode),easymode, type(depth),depth)
+            comment_details = get_comment_details(comment_id, depth=depth, user=user)
             data = comment_details
             response = build_success_response(data)
         except NetworkException as e:

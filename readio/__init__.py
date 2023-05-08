@@ -119,10 +119,12 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment_to_del)
     """ ------------- comment details ------------- """
     # show comment details
+    headers['easymode'] = False
+    # print(headers)
     url_and_params = get_url('book_detail.index_comment', book_id=3, comment_id=1)
     client_test(client, url_and_params, 'GET', headers=headers)
     # add
-    reply_to = 11
+    reply_to = 1
     reply = {'content': f'对{reply_to}的回复-to-del2', 'bookId': 3, 'commentId': reply_to}
     url_and_params = get_url('book_detail.reply_comment', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=reply)
@@ -133,7 +135,7 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     url_and_params = get_url('book_detail.update_comment', book_id=bid, comment_id=cid)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment)
     # del test: 14 11 9
-    reply_to_del = 14
+    reply_to_del = 16
     reply_del = {'bookId': 3, 'commentId': reply_to_del}
     url_and_params = get_url('book_detail.del_replies', book_id=3)
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=reply_del)
