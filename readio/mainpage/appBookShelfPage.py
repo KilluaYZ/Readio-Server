@@ -5,7 +5,7 @@ from flask import Blueprint
 from flask import request
 from flask import url_for
 import inspect
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
@@ -35,10 +35,14 @@ def get_books(user_id: int) -> List[Dict[str, str]]:
     return books
 
 
-def search_books(book_name=None, author_name=None):
-    search_results = {}
-    # sql_join = 'SELECT books.*, authors.authorName FROM books JOIN authors ' \
-    #            'ON books.authorId = authors.id '
+def search_books(book_name: Optional[str] = None, author_name: Optional[str] = None) -> List[dict]:
+    """
+    搜索书籍。根据书名或作者名进行模糊匹配搜索，并按匹配度高低及点赞数进行排序
+
+    :param book_name: 书名
+    :param author_name: 作者名
+    :return: 搜索结果
+    """
     sql = 'SELECT * FROM books '
 
     args = f'%{book_name}%', f'%{author_name}%', book_name, book_name, author_name, author_name
@@ -54,11 +58,11 @@ def search_books(book_name=None, author_name=None):
         sql += "WHERE authorName LIKE %s " \
                "ORDER BY instr(authorName,%s)=0, CHAR_LENGTH(authorName), instr(authorName,%s), likes DESC"
         args = f'%{author_name}%', author_name, author_name
+    else:
+        raise NetworkException(400, '请输入书名或作者名')
 
     results = execute_sql_query(pooldb, sql, args)
-    search_results['size'] = len(results)
-    search_results['data'] = results
-    return search_results
+    return results
 
 
 def add_book_sql(uid, bid, progress):
@@ -192,16 +196,20 @@ def index():
         return response
 
 
-@bp.route('/search', methods=['POST'])
+@bp.route('/search', methods=['GET'])
 def search():
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
             # 检查是否有用户 token ，有返回用户，否则返回 None
             # user = check_user_before_request(request, raise_exc=False)
-            book_name = request.json.get('bookName', None)
-            author_name = request.json.get('authorName', None)
+            book_name = request.headers.get('bookName', None)
+            author_name = request.headers.get('authorName', None)
             results = search_books(book_name, author_name)
-            response = build_success_response(data=results, msg='搜索成功')
+            data = {
+                "size": len(results),
+                "data": results
+            }
+            response = build_success_response(data, msg='搜索成功')
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
         except Exception as e:
