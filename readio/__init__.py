@@ -15,6 +15,7 @@ from readio.monitor.monitor import monitor
 from readio.manage import fileManage, worksManage, userManage
 from readio.utils.json import CustomJSONEncoder
 
+
 # 创建flask app
 def create_app():
     # create and configure the app
@@ -22,6 +23,7 @@ def create_app():
     CORS(app)
 
     app.json_encoder = CustomJSONEncoder
+
     # a simple page that says hello
     @app.route('/hello')
     def hello():
@@ -74,7 +76,7 @@ def app_test(app):
         """ test bookshelf """
         # app_test_bookshelf(client)
         """ test book details"""
-        app_test_book_details(client)
+        # app_test_book_details(client)
 
 
 def app_test_book_details(client, login_data: Dict = None, headers=None):
@@ -94,7 +96,7 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     """ ------------- book details ------------- """
     """ show book details """
     url_and_params = get_url('book_detail.index', book_id=3)
-    client_test(client, url_and_params, 'GET', headers=headers)
+    # client_test(client, url_and_params, 'GET', headers=headers)
     """ like """
     url_and_params = get_url('book_detail.update_like_book', book_id=3)
     like = {'bookId': 3, 'like': 1}
@@ -119,10 +121,10 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
     # client_test(client, url_and_params, 'POST', headers=headers, json_data=comment_to_del)
     """ ------------- comment details ------------- """
     # show comment details
-    headers['easymode'] = False
+    headers['easymode'] = True
     # print(headers)
     url_and_params = get_url('book_detail.index_comment', book_id=3, comment_id=1)
-    client_test(client, url_and_params, 'GET', headers=headers)
+    # client_test(client, url_and_params, 'GET', headers=headers)
     # add
     reply_to = 1
     reply = {'content': f'对{reply_to}的回复-to-del2', 'bookId': 3, 'commentId': reply_to}
@@ -167,6 +169,12 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
     # client_test(client, get_url('bookshelf.update'), 'POST', headers=headers, json_data=read_info)
     # del
     # client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
+    """ ------------- search books ------------- """
+    url_and_params = get_url('bookshelf.search')
+    search = {'bookName': '资本论'}
+    search = {'authorName': '克'}
+    # search = {'bookName': '资本论', 'authorName': '克'}
+    client_test(client, url_and_params, 'POST', headers=headers, json_data=search)
 
 
 def extract_number(text: str, n: int = 1) -> Optional[int]:

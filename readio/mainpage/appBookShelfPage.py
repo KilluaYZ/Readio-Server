@@ -35,6 +35,32 @@ def get_books(user_id: int) -> List[Dict[str, str]]:
     return books
 
 
+def search_books(book_name=None, author_name=None):
+    search_results = {}
+    # sql_join = 'SELECT books.*, authors.authorName FROM books JOIN authors ' \
+    #            'ON books.authorId = authors.id '
+    sql = 'SELECT * FROM books '
+
+    args = f'%{book_name}%', f'%{author_name}%', book_name, book_name, author_name, author_name
+    if book_name is not None and author_name is not None:
+        sql += "WHERE bookName LIKE %s OR authorName LIKE %s " \
+               "ORDER BY instr(bookName,%s)=0, CHAR_LENGTH(bookName), instr(bookName,%s)," \
+               "instr(authorName,%s)=0, CHAR_LENGTH(authorName), instr(authorName,%s), likes DESC"
+    elif book_name is not None:
+        sql += "WHERE bookName LIKE %s " \
+               "ORDER BY instr(bookName,%s)=0, CHAR_LENGTH(bookName), instr(bookName,%s), likes DESC"
+        args = f'%{book_name}%', book_name, book_name
+    elif author_name is not None:
+        sql += "WHERE authorName LIKE %s " \
+               "ORDER BY instr(authorName,%s)=0, CHAR_LENGTH(authorName), instr(authorName,%s), likes DESC"
+        args = f'%{author_name}%', author_name, author_name
+
+    results = execute_sql_query(pooldb, sql, args)
+    search_results['size'] = len(results)
+    search_results['data'] = results
+    return search_results
+
+
 def add_book_sql(uid, bid, progress):
     """将用户书本阅读信息写入数据库"""
     add_sql = 'insert into user_read_info(userId, bookId, progress) values(%s,%s,%s)'
@@ -157,6 +183,25 @@ def index():
                 "data": books
             }
             response = build_success_response(data)
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+
+
+@bp.route('/search', methods=['POST'])
+def search():
+    if request.method == 'POST':
+        try:
+            # 检查是否有用户 token ，有返回用户，否则返回 None
+            # user = check_user_before_request(request, raise_exc=False)
+            book_name = request.json.get('bookName', None)
+            author_name = request.json.get('authorName', None)
+            results = search_books(book_name, author_name)
+            response = build_success_response(data=results, msg='搜索成功')
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
         except Exception as e:
