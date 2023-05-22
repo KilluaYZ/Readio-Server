@@ -25,7 +25,7 @@ pooldb = readio.database.connectPool.pooldb
 def __random_get_pieces_brief_sql(size: int) -> list:
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select piecesId, seriesId, title, userId, state, content, likes, views, shares from pieces')
+        cursor.execute('select piecesId, seriesId, title, userId, status, content, likes, views, shares from pieces')
         rows = cursor.fetchall()
         # 随机从列表中抽取size个元素
         if size > len(rows):
@@ -81,7 +81,7 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     sql_select = 'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
           'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
           'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
-          'pieces.state as state, pieces.likes as likes, pieces.views as views, ' \
+          'pieces.status as status, pieces.likes as likes, pieces.views as views, ' \
           'pieces.shares as shares, pieces.collect as collect from pieces '
 
     args_str_list = []
@@ -254,7 +254,7 @@ def __get_pieces_by_id_sql(piecesId: int) -> dict:
     # return execute_sql_query_one(pooldb,
     #     'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, pieces.title as title, pieces.userId as '
     #     'userId,  pieces.content as content, pieces.createTime as createTime, pieces.updateTime as updateTime, '
-    #     'pieces.state as state, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
+    #     'pieces.status as status, pieces.likes as likes, pieces.views as views, pieces.shares as shares, '
     #     'series.seriesName as seriesName from pieces, series where piecesId = %s and pieces.seriesId = '
     #     'series.seriesId ',
     #     piecesId)
@@ -351,12 +351,111 @@ def get_user_pieces_list():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
+def __add_pieces_sql(data: dict, trans=None) -> int:
+    try:
+        sql = 'insert into pieces('
+        args_list = []
+
+        # 系列id
+        sql += ' seriesId '
+        args_list.append(data['seriesId'])
+        value_sql = ' %s '
+
+        # 用户名
+        if 'userId' in data:
+            sql += ' ,userId '
+            args_list.append(data['userId'])
+            value_sql += ' ,%s '
+
+        if 'content' in data:
+            sql += ' ,content '
+            args_list.append(data['content'])
+            value_sql += ' ,%s '
+
+        if 'status' in data:
+            sql += ' ,status '
+            args_list.append(data['status'])
+            value_sql += ' ,%s '
+
+        if 'piecesTitle' in data:
+            sql += ' ,title '
+            args_list.append(data['piecesTitle'])
+            value_sql += ' ,%s '
+
+        sql += f') values({value_sql})'
+
+        if trans is None:
+            id_ = execute_sql_write(pooldb, sql, tuple(args_list))
+        else:
+            id_ = trans.execute(sql, tuple(args_list))
+        return id_
+
+    except Exception as e:
+        check.printException(e)
+        raise e
+
+
 @bp.route('/addPieces', methods=['POST'])
 def add_pieces():
     """
     添加一章
     """
-    return build_success_response()
+    try:
+        data = request.json
+        if "piecesTitle" not in data or "content" not in data or "status" not in data:
+            print(f'[DEBUG] 前端数据错误 piecesTitle: {"piecesTitle" in data} content: {"content" in data} status: {"status" in data}')
+            raise NetworkException(400, "前端数据错误，必须包含piecesTitle、content、status")
+
+        if 'seriesId' not in data and 'seriesName' not in data:
+            print(
+                f'[DEBUG] 前端数据错误 seriesId: {"seriesId" in data} seriesName: {"seriesName" in data}')
+            raise NetworkException(400, "前端数据错误，必须包含seriesId、seriesName其中之一")
+
+        # 检查权限
+        if 'userId' in data:
+            user = check_user_before_request(request, roles='common')
+            if user['id'] != data['userId']:
+                user = check_user_before_request(request, roles='manager')
+        else:
+            user = check_user_before_request(request, roles='common')
+
+        data['userId'] = user['id']
+
+        # 开启事务
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        seriesId = data.get("seriesId")
+        if seriesId is None or len(seriesId) == 0:
+            # 妹有传来id说明不存在该series，是要添加series
+            add_series_param = {}
+            add_series_param['userId'] = user['id']
+            add_series_param['seriesName'] = data['seriesName']
+            seriesId = __add_series_sql(add_series_param, trans)
+            data['seriesId'] = seriesId
+
+        print(f'[DEBUG] tagNameList: {data["tagNameList"]} tagIdList: {data["tagIdList"]}')
+        if 'tagNameList' in data and 'tagIdList' in data:
+            tagNameList = data['tagNameList']
+            tagIdList = data['tagIdList']
+            for tagId in tagIdList:
+                if tagId is not None and len(tagId) > 0:
+                    __add_tag_series_relation_sql(tagId, seriesId, trans)
+            for tagName in tagNameList:
+                if tagName is not None and len(tagName) > 0:
+                    newAddedTagId = trans.execute('insert into tags(content) values(%s)', tagName)
+                    __add_tag_series_relation_sql(newAddedTagId, seriesId, trans)
+
+        __add_pieces_sql(data, trans)
+
+        trans.commit()
+
+        return build_success_response()
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
 
 
 def __add_series_sql(data: dict, trans=None):
