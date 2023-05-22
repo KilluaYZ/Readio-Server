@@ -74,7 +74,7 @@ def app_test(app):
         """ test auth """
         # app_test_auth(client)
         """ test bookshelf """
-        app_test_bookshelf(client)
+        # app_test_bookshelf(client)
         """ test book details"""
         # app_test_book_details(client)
 
@@ -174,7 +174,6 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
     # client_test(client, get_url('bookshelf.update'), 'POST', headers=headers, json_data=read_info)
     # del
     # client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
-
 
 
 def extract_number(text: str, n: int = 1) -> Optional[int]:
