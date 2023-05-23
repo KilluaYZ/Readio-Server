@@ -49,6 +49,8 @@ def get_book_info_sql(bid):
 def get_book_details(bid, user=None):
     details, comments_data = {}, {}
     book_info = get_book_info_sql(bid)
+    # TODO:暂未添加的书籍封面
+    book_info['bitmap'] = None
     # 评论等信息 (comments_data)
     get_comments_sql = 'SELECT c.* FROM comments AS c, comment_book AS cb ' \
                        'WHERE cb.bookId=%s AND c.commentId=cb.commentId'
