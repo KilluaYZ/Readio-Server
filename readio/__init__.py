@@ -57,7 +57,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
-    # app_test(app)
+    app_test(app)
 
     return app
 
@@ -76,13 +76,13 @@ def app_test(app):
         """ test bookshelf """
         # app_test_bookshelf(client)
         """ test book details"""
-        # app_test_book_details(client)
+        app_test_book_details(client)
 
 
 def app_test_book_details(client, login_data: Dict = None, headers=None):
     if login_data is None:
         login_data = {
-            "phoneNumber": "19800380215",
+            "phoneNumber": "19800380000",
             "passWord": "123456"
         }  # uid = 3
     if headers is None:
@@ -146,7 +146,7 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
 def app_test_bookshelf(client, login_data: Dict = None, headers=None):
     if login_data is None:
         login_data = {
-            "phoneNumber": "19800380215",
+            "phoneNumber": "19800380000",
             "passWord": "123456"
         }
     read_info = dict()
@@ -251,7 +251,7 @@ def app_test_auth(client, headers=None, user_data=None):
         headers = {}
     if user_data is None:
         user_data = {
-            "phoneNumber": "19800380215",
+            "phoneNumber": "19800380000",
             "passWord": "123456"
         }
     # register
