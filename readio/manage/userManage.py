@@ -49,7 +49,7 @@ def query_user_sql(queryParam):
 @bp.route('/list', methods=['GET'])
 def userList():
     try:
-        check_user_before_request(request, roles='admin')
+        check_user_before_request(request, roles='common')
         queryParam = request.args
         rows = query_user_sql(queryParam)
         data_length = len(rows)
@@ -141,9 +141,8 @@ def addUser():
         user = check_user_before_request(request, roles='admin')
 
         data = request.json
-        if ('phoneNumber' not in data or 'passWord' not in data
-                or 'roles' not in data):
-            raise NetworkException(code=400, msg="前端数据错误，请检查电话号码、密码、角色是否设置正确")
+        if ('phoneNumber' not in data or 'passWord' not in data):
+            raise NetworkException(code=400, msg="前端数据错误，请检查电话号码、密码是否设置正确")
 
         if not check_if_phonenumber_is_unique(data['phoneNumber']):
             raise NetworkException(code=400, msg="电话号码已被注册，请重试")
@@ -219,7 +218,7 @@ def userUpdate():
 @bp.route('/get', methods=['POST'])
 def getUser():
     try:
-        check_user_before_request(request, roles='admin')
+        # check_user_before_request(request, roles='admin')
 
         data = request.json
         if ('userId' not in data):
