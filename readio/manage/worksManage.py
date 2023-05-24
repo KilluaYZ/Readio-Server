@@ -131,13 +131,6 @@ def get_bref():
                 size = 15
             rows = __random_get_pieces_brief_sql(size)
 
-            # 查找最热门的标签
-            for i in range(len(rows)):
-                max_linked_tag = __get_tags_by_seriesId_sql(int(rows[i]['seriesId']), 'hot')
-                if len(max_linked_tag):
-                    rows[i]['tag'] = max_linked_tag[0]
-                else:
-                    rows[i]['tag'] = None
         elif mode == 'query':
             rows = __query_pieces_sql(request.args)
             print(f'[DEBUG] 拿到了pieces数据，共{len(rows)}条')
@@ -148,14 +141,25 @@ def get_bref():
                 pageNum = int(pageNum)
                 rows = rows[pageSize*(pageNum - 1): pageSize * pageNum]
             print('[DEBUG] 分页完成')
-            for i in range(len(rows)):
-                seriesId = rows[i].get('seriesId')
-                if seriesId is not None:
-                    series = __query_series_brief_sql({"seriesId": seriesId})
-                    if series is not None and len(series):
-                        rows[i]['series'] = series[0]
-                    tag_list = __get_tags_by_seriesId_sql(seriesId)
-                    rows[i]['tag'] = tag_list
+
+
+        # 查找最热门的标签
+        for i in range(len(rows)):
+            max_linked_tag = __get_tags_by_seriesId_sql(int(rows[i]['seriesId']), 'hot')
+            if len(max_linked_tag):
+                rows[i]['tag'] = max_linked_tag[0]
+            else:
+                rows[i]['tag'] = None
+
+        #查找对应的series的详细信息
+        for i in range(len(rows)):
+            seriesId = rows[i].get('seriesId')
+            if seriesId is not None:
+                series = __query_series_brief_sql({"seriesId": seriesId})
+                if series is not None and len(series):
+                    rows[i]['series'] = series[0]
+                tag_list = __get_tags_by_seriesId_sql(seriesId)
+                rows[i]['tag'] = tag_list
 
         # 查找对应的用户
         for i in range(len(rows)):
@@ -401,6 +405,7 @@ def add_pieces():
     添加一章
     """
     try:
+        msg = '发布成功'
         data = request.json
         if "piecesTitle" not in data or "content" not in data or "status" not in data:
             print(f'[DEBUG] 前端数据错误 piecesTitle: {"piecesTitle" in data} content: {"content" in data} status: {"status" in data}')
@@ -437,19 +442,32 @@ def add_pieces():
         if 'tagNameList' in data and 'tagIdList' in data:
             tagNameList = data['tagNameList']
             tagIdList = data['tagIdList']
-            for tagId in tagIdList:
+            for i in range(len(tagIdList)):
+                tagId = tagIdList[i]
                 if tagId is not None and len(tagId) > 0:
                     __add_tag_series_relation_sql(tagId, seriesId, trans)
-            for tagName in tagNameList:
-                if tagName is not None and len(tagName) > 0:
-                    newAddedTagId = trans.execute('insert into tags(content) values(%s)', tagName)
-                    __add_tag_series_relation_sql(newAddedTagId, seriesId, trans)
+                else:
+                    tagName = tagNameList[i]
+                    tagObjs = __get_tag_by_content(tagName)
+                    if tagObjs is not None and len(tagObjs):
+                        newAddedTagId = tagObjs[0]["tagId"]
+                    else:
+                        newAddedTagId = __add_tag(tagName, trans)
+                    tags_relation = execute_sql_query_one(pooldb,
+                                                          'select * from tag_series where tagId=%s and seriesId = %s',
+                                                          (newAddedTagId, seriesId))
+                    if tags_relation is None:
+                        __add_tag_series_relation_sql(newAddedTagId, seriesId, trans)
+                        __update_tag_linked_times_sql(newAddedTagId, trans)
+                    else:
+                        msg = f'标签{tagName}重复添加'
+        print(f'[DEBUG] content = {data["content"]}')
 
         __add_pieces_sql(data, trans)
 
         trans.commit()
 
-        return build_success_response()
+        return build_success_response(msg=msg)
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
 
@@ -776,6 +794,16 @@ def del_tag():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+def __get_tag_by_id(tagId: str) -> Dict:
+    return execute_sql_query_one(pooldb, 'select * from tags where tagId=%s', tagId)
+
+def __get_tag_by_content(content: str) -> Dict:
+    return execute_sql_query(pooldb, 'select * from tags where content=%s', content)
+
+def __add_tag(content: str, trans=None) -> int:
+    if trans is not None:
+        return trans.execute('insert into tags(content) values(%s)', content)
+    return execute_sql_write(pooldb, 'insert into tags(content) values(%s)', content)
 
 @bp.route('/tag/add', methods=['POST'])
 def add_tag():
@@ -788,7 +816,7 @@ def add_tag():
             raise NetworkException(400, "前端数据错误，缺少content")
         check_user_before_request(request)
 
-        execute_sql_write(pooldb, 'insert into tags(content) values(%s)', content)
+
 
         return build_success_response()
     except NetworkException as e:
@@ -944,3 +972,5 @@ def add_tag_series_relation():
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
+
+
