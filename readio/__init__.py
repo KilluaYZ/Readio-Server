@@ -12,8 +12,9 @@ from readio.auth import appAuth
 from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
 from readio.monitor.monitor import monitor
-from readio.manage import fileManage, worksManage, userManage
+from readio.manage import fileManage, worksManage, userManage, likesManage
 from readio.utils.json import CustomJSONEncoder
+
 
 
 # 创建flask app
@@ -43,6 +44,7 @@ def create_app():
     app.register_blueprint(appBookDetailsPage.bp)
     app.register_blueprint(fileManage.bp)
     app.register_blueprint(worksManage.bp)
+    app.register_blueprint(likesManage.bp)
 
     # 配置定时任务
     # 该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改

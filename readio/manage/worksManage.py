@@ -15,6 +15,7 @@ import readio.database.connectPool
 import readio.utils.check as check
 from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
+from readio.manage.likesManage import __get_all_like_pieces_id_by_userid
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
@@ -168,6 +169,28 @@ def get_bref():
         # 缩短content
         for i in range(len(rows)):
             rows[i]['content'] = rows[i]['content'][:40]
+
+        # 获取用户点赞情况
+        # 先设置未点赞
+        for i in range(len(rows)):
+            rows[i]["isLiked"] = 0
+        try:
+            # print(f'[DEBUG] enter try')
+            # 尝试获取user点赞信息
+            user = check_user_before_request(request)
+            userId = user['id']
+            user_all_liked_pieces_id_list = __get_all_like_pieces_id_by_userid(userId)
+            # print(f'[DEBUG] user_all_liked_pieces_id_list = {user_all_liked_pieces_id_list}')
+            for i in range(len(rows)):
+                if int(rows[i]['piecesId']) in user_all_liked_pieces_id_list:
+                    # print(f'[DEBUG] enter like')
+                    # 在用户喜欢的列表里
+                    rows[i]["isLiked"] = 1
+        except NetworkException:
+            pass
+        except Exception as e:
+            raise e
+
         return build_success_response(rows)
 
     except NetworkException as e:
@@ -458,7 +481,7 @@ def add_pieces():
                                                           (newAddedTagId, seriesId))
                     if tags_relation is None:
                         __add_tag_series_relation_sql(newAddedTagId, seriesId, trans)
-                        __update_tag_linked_times_sql(newAddedTagId, trans)
+                        # __update_tag_linked_times_sql(newAddedTagId, trans)
                     else:
                         msg = f'标签{tagName}重复添加'
         print(f'[DEBUG] content = {data["content"]}')
@@ -537,7 +560,7 @@ def add_series():
         if tags_list is not None:
             for tag in tags_list:
                 __add_tag_series_relation_sql(tag['tagId'], seriesId, trans)
-                __update_tag_linked_times_sql(tag['tagId'], trans)
+                # __update_tag_linked_times_sql(tag['tagId'], trans)
 
         trans.commit()
 
@@ -669,10 +692,10 @@ def __update_series_sql(data: dict):
             tag_id_remove_list = list(origin_tag_id_set - new_tag_id_set)
             for tagId in tag_id_add_list:
                 __add_tag_series_relation_sql(tagId, seriesId, trans)
-                __update_tag_linked_times_sql(tagId, trans)
+                # __update_tag_linked_times_sql(tagId, trans)
             for tagId in tag_id_remove_list:
                 __del_tag_series_relation_sql(tagId, seriesId, trans)
-                __update_tag_linked_times_sql(tagId, trans)
+                # __update_tag_linked_times_sql(tagId, trans)
 
         trans.commit()
 
@@ -913,7 +936,7 @@ def del_tag_series_relation():
         # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
         __del_tag_series_relation_sql(tagId, seriesId, trans)
         # 更新一下tag的被引用次数
-        __update_tag_linked_times_sql(tagId, trans)
+        # __update_tag_linked_times_sql(tagId, trans)
         trans.commit()
 
         return build_success_response()
@@ -962,7 +985,7 @@ def add_tag_series_relation():
         # 如果前端发来的seriesId是用户自己的，则直接进行操作，因为用户对自己的数据又绝对的控制权
         __add_tag_series_relation_sql(tagId, seriesId, trans)
         # 更新一下tag的被引用次数
-        __update_tag_linked_times_sql(tagId, trans)
+        # __update_tag_linked_times_sql(tagId, trans)
         trans.commit()
 
         return build_success_response()
