@@ -317,6 +317,34 @@ def get_pieces_detail():
             if seriesList is not None and len(seriesList):
                 piece['series'] = seriesList[0]
 
+                # 获取用户点赞收藏情况
+                # 先设置未点赞，未收藏
+                piece["isLiked"] = 0
+                piece["isCollected"] = 0
+                try:
+                    print(f'[DEBUG] enter try')
+                    # 尝试获取user点赞信息
+                    user = check_user_before_request(request)
+                    userId = user['id']
+                    user_all_liked_pieces_id_list = __get_all_like_pieces_id_by_userid(userId)
+                    user_all_collected_pieces_id_list = __get_all_collect_pieces_id_by_userid(userId)
+                    # print(f'[DEBUG] user_all_liked_pieces_id_list = {user_all_liked_pieces_id_list}')
+                    # print(f'[DEBUG] user_all_collected_pieces_id_list = {user_all_collected_pieces_id_list}')
+
+                    if int(piece['piecesId']) in user_all_liked_pieces_id_list:
+                        # print(f'[DEBUG] enter like')
+                        # 在用户喜欢的列表里
+                        piece["isLiked"] = 1
+                    if int(piece['piecesId']) in user_all_collected_pieces_id_list:
+                        # print(f'[DEBUG] enter collect')
+                        # 在用户喜欢的列表里
+                        piece["isCollected"] = 1
+
+                except NetworkException:
+                    print("用户未登录或不存在，不返回点赞收藏信息")
+                except Exception as e:
+                    raise e
+
         return build_success_response(piece)
 
     except NetworkException as e:
