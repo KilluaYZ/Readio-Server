@@ -1,3 +1,5 @@
+from typing import Any
+
 from flask import request
 from flask import Blueprint
 import os
@@ -13,6 +15,7 @@ from readio.utils.check import is_number
 from readio.utils.auth import check_tokens_get_state, check_user_before_request, USER_ROLE_MAP, get_user_by_id
 from readio.utils.executeSQL import *
 from readio.utils.myExceptions import NetworkException
+
 
 # conndb = Conndb(cursor_mode='dict')
 bp = Blueprint('user', __name__, url_prefix='/user')
@@ -216,12 +219,11 @@ def userUpdate():
         return build_error_response(code=500, msg="服务器内部错误")
 
 
-@bp.route('/get', methods=['POST'])
+@bp.route('/get', methods=['GET'])
 def getUser():
     try:
         # check_user_before_request(request, roles='admin')
-
-        data = request.json
+        data = request.args
         if ('userId' not in data):
             raise NetworkException(400, '前端数据错误，无userId')
 
@@ -439,8 +441,11 @@ def __get_all_authors_obj_by_userid(userId) -> List[Dict]:
     return execute_sql_query(pooldb, sql, userId)
 
 def __check_id_user_has_subscribed_the_author(followerId, authorId) -> bool:
-    rows = __get_all_authorId_id_by_userid(followerId)
+    followerId = int(followerId)
     authorId = int(authorId)
+    if followerId == authorId:
+        return True
+    rows = __get_all_authorId_id_by_userid(followerId)
     if rows is not None and len(rows) and authorId in rows:
         return True
     return False
@@ -545,3 +550,28 @@ def get_user_subscribe_follower():
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
+
+
+def get_user_by_id_aux(userId: int, request=None):
+
+    user = execute_sql_query_one(pooldb,
+                                 'select id, userName, roles, email, phoneNumber, avator from users where id = %s ',
+                                 int(userId))
+    if user is None:
+        return None
+
+    user['isSubscribed'] = 0
+    if request is not None:
+        try:
+            # 尝试获取user点赞信息
+            follower = check_user_before_request(request)
+            followerId = follower['id']
+            if __check_id_user_has_subscribed_the_author(followerId, userId):
+                user['isSubscribed'] = 1
+
+        except NetworkException:
+            print("用户未登录或不存在，不返回点赞收藏信息")
+        except Exception as e:
+            raise e
+
+    return user
