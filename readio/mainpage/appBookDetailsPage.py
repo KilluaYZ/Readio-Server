@@ -329,8 +329,10 @@ def index(book_id):
         try:
             # 检查是否有用户 token ，有返回用户，否则返回 None
             user = check_user_before_request(request, raise_exc=False)
+            # print(f"[DEBUG] user = {user}")
             details = get_book_details(book_id, user)
             data = details
+            # print(f"[DEBUG] response = {data}")
             response = build_success_response(data)
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
@@ -338,6 +340,8 @@ def index(book_id):
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response(msg=str(e))
+
+
         return response
 
 
