@@ -19,6 +19,7 @@ from readio.utils.auth import *
 import readio.database.connectPool
 import readio.utils.check as check
 from readio.utils.executeSQL import *
+from random import  randint
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('file', __name__, url_prefix='/file')
@@ -529,6 +530,40 @@ def update_res_info():
         execute_sql_write(pooldb, 'update file_info set fileName=%s where fileId = %s', (fileName, fileId))
 
         return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
+
+
+@bp.route('/randomGetImgFileInfo', methods=['GET'])
+def random_get_img_id():
+    try:
+        sql = 'select count(*) as count from file_info where fileType in ' \
+              ' ("webp", "jpg", "jpeg", "png", "gif", "svg") '
+        count = execute_sql_query_one(pooldb, sql)
+        if count is None:
+            raise Exception("无法获取count")
+
+        count = int(count['count'])
+        print(f'[DEBUG] count = {count}')
+        if count == 0:
+            return build_success_response(data={})
+
+        idx = randint(0, count-1)
+
+        sql = 'select * from file_info where fileType in ' \
+              '("webp", "jpg", "jpeg", "png", "gif", "svg") ' \
+              'limit 1 offset %s '
+
+        row = execute_sql_query_one(pooldb, sql, idx)
+        if row is None:
+            raise Exception("无法获取随机的图片id")
+
+        return build_success_response(data=row)
 
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
