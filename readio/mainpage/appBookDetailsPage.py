@@ -340,8 +340,6 @@ def index(book_id):
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
             response = build_error_response(msg=str(e))
-
-
         return response
 
 

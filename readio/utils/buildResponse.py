@@ -5,6 +5,7 @@ import json
 from flask import make_response
 from flask import jsonify
 
+
 def build_response(code: int, msg: str, data=None, length=0):
     if data is None:
         data = {}

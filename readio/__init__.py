@@ -10,12 +10,11 @@ from flask_cors import CORS  # 跨域
 # app
 from readio.auth import appAuth
 from readio.database.init_db import init_db
-from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
+from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage, appBookReadPage
 from readio.manage.fileManage import getFilePathById
 from readio.monitor.monitor import monitor
 from readio.manage import fileManage, worksManage, userManage
 from readio.utils.json import CustomJSONEncoder
-
 
 
 # 创建flask app
@@ -43,6 +42,7 @@ def create_app():
     app.register_blueprint(appHomePage.bp)
     app.register_blueprint(appBookShelfPage.bp)
     app.register_blueprint(appBookDetailsPage.bp)
+    app.register_blueprint(appBookReadPage.bp)
     app.register_blueprint(fileManage.bp)
     app.register_blueprint(worksManage.bp)
 
@@ -60,7 +60,7 @@ def create_app():
     scheduler.start()
     """ 测试 """
     print(f'[TEST] filePath = {getFilePathById("0658a5df12791200a99b5e0f26b03e2d53154567c759683d7b355982cff124a6")}')
-    app_test(app)
+    # app_test(app)
 
     return app
 
@@ -79,7 +79,26 @@ def app_test(app):
         """ test bookshelf """
         # app_test_bookshelf(client)
         """ test book details"""
-        app_test_book_details(client)
+        # app_test_book_details(client)
+        """ test book reading """
+        app_test_book_reading(client)
+
+
+def app_test_book_reading(client, login_data: Dict = None, headers=None):
+    if login_data is None:
+        login_data = {
+            "phoneNumber": "19800380000",
+            "passWord": "123456"
+        }  # uid = 3
+    if headers is None:
+        headers = {}
+        # login to get token
+        resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
+        token = resp_dict['data']['token']
+        headers['Authorization'] = token
+    resp_dict = {}
+    url_and_params = get_url('book_reading.index', book_id=3)
+    client_test(client, url_and_params, 'GET', headers=headers)
 
 
 def app_test_book_details(client, login_data: Dict = None, headers=None):
@@ -93,13 +112,14 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         # login to get token
         resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
         token = resp_dict['data']['token']
-        headers['Authorization'] = token
+        # headers['Authorization'] = token
+        headers['Authorization'] = '5cf397accdcf195bfe983af257fdbbf14e1fc83d'
         headers['depth'] = 3
     resp_dict = {}
     """ ------------- book details ------------- """
     """ show book details """
-    url_and_params = get_url('book_detail.index', book_id=3)
-    # client_test(client, url_and_params, 'GET', headers=headers)
+    url_and_params = get_url('book_detail.index', book_id=24)
+    client_test(client, url_and_params, 'GET', headers=headers)
     """ like """
     url_and_params = get_url('book_detail.update_like_book', book_id=3)
     like = {'bookId': 3, 'like': 1}
@@ -170,7 +190,7 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
     url_and_params = get_url('bookshelf.search')
     headers['bookName'] = '资本论'
     headers['authorName'] = '克'
-    client_test(client, url_and_params, 'GET', headers=headers)
+    # client_test(client, url_and_params, 'GET', headers=headers)
     # add
     # client_test(client, get_url('bookshelf.add'), 'POST', headers=headers, json_data=read_info)
     # update
