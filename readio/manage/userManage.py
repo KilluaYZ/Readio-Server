@@ -11,6 +11,7 @@ from readio.utils import check
 from readio.utils.buildResponse import *
 from readio.utils.check import is_number
 from readio.utils.auth import check_tokens_get_state, check_user_before_request, USER_ROLE_MAP, get_user_by_id
+from readio.utils.executeSQL import *
 from readio.utils.myExceptions import NetworkException
 
 # conndb = Conndb(cursor_mode='dict')
@@ -386,3 +387,162 @@ def checkSessionsAvailability():
     finally:
         if conn is not None:
             pooldb.close_conn(conn, cursor)
+
+
+# 用户关注
+def __add_user_subscribe(followerId, authorId, trans=None):
+    sql = 'insert into user_subscribe(followerId, authorId) values(%s, %s)'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (followerId, authorId))
+    else:
+        return trans.execute(sql, (follwerId, authorId))
+
+
+def __get_all_followerId_id_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces的id
+    """
+    sql = 'select followerId from user_subscribe where authorId=%s'
+    rows = execute_sql_query(pooldb, sql, userId)
+    rows = list(map(lambda x: int(x['follwerId']), rows))
+    return rows
+
+def __get_all_authorId_id_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces的id
+    """
+    sql = 'select authorId from user_subscribe where followerId=%s'
+    rows = execute_sql_query(pooldb, sql, userId)
+    rows = list(map(lambda x: int(x['authorId']), rows))
+    return rows
+
+def __get_all_followers_obj_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces
+    """
+    sql = 'select users.id as id, users.userName as userName, ' \
+          'users.roles as roles, users.phoneNumber as phoneNumber, ' \
+          'users.avator as avator from users, user_subscribe ' \
+          'where users.id=user_subscribe.followerId ' \
+          'and user_subscribe.authorId = %s order by createTime desc'
+    return execute_sql_query(pooldb, sql, userId)
+
+def __get_all_authors_obj_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces
+    """
+    sql = 'select users.id as id, users.userName as userName, ' \
+          'users.roles as roles, users.phoneNumber as phoneNumber, ' \
+          'users.avator as avator from users, user_subscribe ' \
+          'where users.id=user_subscribe.authorId ' \
+          'and user_subscribe.followerId = %s order by createTime desc'
+    return execute_sql_query(pooldb, sql, userId)
+
+def __check_id_user_has_subscribed_the_author(followerId, authorId) -> bool:
+    rows = __get_all_authorId_id_by_userid(followerId)
+    authorId = int(authorId)
+    if rows is not None and len(rows) and authorId in rows:
+        return True
+    return False
+
+
+@bp.route('/subscribe/add', methods=['GET'])
+def add_user_subscribe():
+    """
+    关注用户
+    """
+    try:
+        authorId = request.args.get("userId")
+        if authorId is None:
+            raise NetworkException(400, "前端数据缺失，缺少authorId")
+
+        user = check_user_before_request(request)
+        userId = user['id']
+
+        print(f'[DEBUG] userId={userId}, authorId={authorId}')
+        if userId == authorId:
+            raise NetworkException(400, "无法自己关注自己！")
+
+        if not __check_id_user_has_subscribed_the_author(userId, authorId):
+            # 还没有点赞过
+            __add_user_subscribe(userId, authorId)
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+def __del_user_subscribe(followerId, authorId, trans=None):
+    sql = 'delete from user_subscribe where followerId=%s and authorId=%s'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (followerId, authorId))
+    else:
+        return trans.execute(sql, (followerId, authorId))
+
+
+@bp.route('/subscribe/del', methods=['GET'])
+def del_user_subscribe():
+    """
+    取关用户
+    """
+    try:
+        authorId = request.args.get("userId")
+        if authorId is None:
+            raise NetworkException(400, "前端数据缺失，缺少piecesId")
+
+        user = check_user_before_request(request)
+        userId = user['id']
+        __del_user_subscribe(userId, authorId)
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+@bp.route('/subscribe/get/author', methods=['GET'])
+def get_user_subscribe_author():
+    """
+    获取该用户关注的所有用户
+    """
+    try:
+        user = check_user_before_request(request)
+        userId = user['id']
+        rows = __get_all_authorId_id_by_userid(userId)
+
+        return build_success_response(data=rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+@bp.route('/subscribe/get/follower', methods=['GET'])
+def get_user_subscribe_follower():
+    """
+    获取该用户关注的所有粉丝
+    """
+    try:
+        user = check_user_before_request(request)
+        userId = user['id']
+        rows = __get_all_followerId_id_by_userid(userId)
+
+        return build_success_response(data=rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服'
+                                                  '务器内部错误')

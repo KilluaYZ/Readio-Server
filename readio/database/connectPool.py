@@ -41,7 +41,7 @@ class Pooldb:
                     user=self.user,
                     passwd=self.password,
                     db=self.database,
-                    charset='utf8',
+                    charset='utf8mb4',
                     local_infile=True,
                 )
             except BaseException as e:
