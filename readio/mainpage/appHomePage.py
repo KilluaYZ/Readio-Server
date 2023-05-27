@@ -32,7 +32,11 @@ def get_random_sentences(size):
     # 将 id 转换成字符串并用逗号拼接
     id_string = ','.join(str(i) for i in ids)
     # 构造 SQL 语句
-    get_random_sql = f"SELECT * FROM sentences WHERE id IN ({id_string})"
+    # get_random_sql = f"SELECT * FROM sentences WHERE id IN ({id_string})"
+    get_random_sql = f"SELECT s.*, b.bookName, b.authorName " \
+                     f"FROM sentences s " \
+                     f"LEFT JOIN books b ON s.bookId = b.id " \
+                     f"WHERE s.id IN ({id_string})"
     sentences = execute_sql_query(pooldb, get_random_sql, ())  # 执行 SQL 语句并返回结果
     return sentences
 
