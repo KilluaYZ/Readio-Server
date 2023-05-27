@@ -15,6 +15,7 @@ import readio.database.connectPool
 import readio.utils.check as check
 from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
+from readio.manage.userManage import get_user_by_id_aux
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
@@ -25,7 +26,8 @@ pooldb = readio.database.connectPool.pooldb
 def __random_get_pieces_brief_sql(size: int) -> list:
     try:
         conn, cursor = pooldb.get_conn()
-        cursor.execute('select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces')
+        cursor.execute(
+            'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces')
         rows = cursor.fetchall()
         # 随机从列表中抽取size个元素
         if size > len(rows):
@@ -79,10 +81,10 @@ def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
 
 def __query_pieces_sql(query_param: dict) -> List[Dict]:
     sql_select = 'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
-          'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
-          'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
-          'pieces.status as status, pieces.likes as likes, pieces.views as views, ' \
-          'pieces.shares as shares, pieces.collect as collect from pieces '
+                 'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
+                 'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
+                 'pieces.status as status, pieces.likes as likes, pieces.views as views, ' \
+                 'pieces.shares as shares, pieces.collect as collect from pieces '
 
     args_str_list = []
     args_val_list = []
@@ -118,6 +120,7 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     # print(f'[DEBUG] rows = {rows}')
     return rows
 
+
 @bp.route('/getPiecesBrief', methods=['GET'])
 def get_bref():
     """
@@ -139,9 +142,8 @@ def get_bref():
             if pageNum is not None and pageSize is not None:
                 pageSize = int(pageSize)
                 pageNum = int(pageNum)
-                rows = rows[pageSize*(pageNum - 1): pageSize * pageNum]
+                rows = rows[pageSize * (pageNum - 1): pageSize * pageNum]
             print('[DEBUG] 分页完成')
-
 
         # 查找最热门的标签
         for i in range(len(rows)):
@@ -151,7 +153,7 @@ def get_bref():
             else:
                 rows[i]['tag'] = None
 
-        #查找对应的series的详细信息
+        # 查找对应的series的详细信息
         for i in range(len(rows)):
             seriesId = rows[i].get('seriesId')
             if seriesId is not None:
@@ -175,7 +177,6 @@ def get_bref():
             rows[i]["isLiked"] = 0
             rows[i]["isCollected"] = 0
         try:
-            print(f'[DEBUG] enter try')
             # 尝试获取user点赞信息
             user = check_user_before_request(request)
             userId = user['id']
@@ -294,6 +295,42 @@ def __get_pieces_by_id_sql(piecesId: int) -> dict:
     return execute_sql_query_one(pooldb, 'select * from pieces where piecesId = %s', piecesId)
 
 
+def __get_pieces_by_id_aux(piecesId: int, request=None) -> dict:
+    piece = __get_pieces_by_id_sql(piecesId)
+    if piece is None:
+        return None
+
+    # 获取用户点赞收藏情况
+    # 先设置未点赞，未收藏
+    piece["isLiked"] = 0
+    piece["isCollected"] = 0
+    if request is not None:
+        try:
+            # 尝试获取user点赞信息
+            user = check_user_before_request(request)
+            userId = user['id']
+            user_all_liked_pieces_id_list = __get_all_like_pieces_id_by_userid(userId)
+            user_all_collected_pieces_id_list = __get_all_collect_pieces_id_by_userid(userId)
+            # print(f'[DEBUG] user_all_liked_pieces_id_list = {user_all_liked_pieces_id_list}')
+            # print(f'[DEBUG] user_all_collected_pieces_id_list = {user_all_collected_pieces_id_list}')
+
+            if int(piece['piecesId']) in user_all_liked_pieces_id_list:
+                # print(f'[DEBUG] enter like')
+                # 在用户喜欢的列表里
+                piece["isLiked"] = 1
+            if int(piece['piecesId']) in user_all_collected_pieces_id_list:
+                # print(f'[DEBUG] enter collect')
+                # 在用户喜欢的列表里
+                piece["isCollected"] = 1
+
+        except NetworkException:
+            print("用户未登录或不存在，不返回点赞收藏信息")
+        except Exception as e:
+            raise e
+
+    return piece
+
+
 @bp.route('/getPiecesDetail', methods=['GET'])
 def get_pieces_detail():
     """
@@ -305,45 +342,17 @@ def get_pieces_detail():
             raise NetworkException(400, '传入数据错误，未包含piecesId')
 
         pieceId = data['piecesId']
-        piece = __get_pieces_by_id_sql(pieceId)
+        piece = __get_pieces_by_id_aux(pieceId, request)
         if piece is None:
             raise NetworkException(404, '该章节不存在')
         tag_list = __get_tags_by_seriesId_sql(piece['seriesId'])
         piece['tag'] = tag_list
-        piece['user'] = get_user_by_id(piece['userId'])
+        piece['user'] = get_user_by_id_aux(piece['userId'], request)
         piece['series'] = {}
         if 'seriesId' in piece and piece['seriesId'] is not None:
             seriesList = __query_series_brief_sql({"seriesId": piece['seriesId']})
             if seriesList is not None and len(seriesList):
                 piece['series'] = seriesList[0]
-
-                # 获取用户点赞收藏情况
-                # 先设置未点赞，未收藏
-                piece["isLiked"] = 0
-                piece["isCollected"] = 0
-                try:
-                    print(f'[DEBUG] enter try')
-                    # 尝试获取user点赞信息
-                    user = check_user_before_request(request)
-                    userId = user['id']
-                    user_all_liked_pieces_id_list = __get_all_like_pieces_id_by_userid(userId)
-                    user_all_collected_pieces_id_list = __get_all_collect_pieces_id_by_userid(userId)
-                    # print(f'[DEBUG] user_all_liked_pieces_id_list = {user_all_liked_pieces_id_list}')
-                    # print(f'[DEBUG] user_all_collected_pieces_id_list = {user_all_collected_pieces_id_list}')
-
-                    if int(piece['piecesId']) in user_all_liked_pieces_id_list:
-                        # print(f'[DEBUG] enter like')
-                        # 在用户喜欢的列表里
-                        piece["isLiked"] = 1
-                    if int(piece['piecesId']) in user_all_collected_pieces_id_list:
-                        # print(f'[DEBUG] enter collect')
-                        # 在用户喜欢的列表里
-                        piece["isCollected"] = 1
-
-                except NetworkException:
-                    print("用户未登录或不存在，不返回点赞收藏信息")
-                except Exception as e:
-                    raise e
 
         return build_success_response(piece)
 
@@ -465,7 +474,8 @@ def add_pieces():
         msg = '发布成功'
         data = request.json
         if "piecesTitle" not in data or "content" not in data or "status" not in data:
-            print(f'[DEBUG] 前端数据错误 piecesTitle: {"piecesTitle" in data} content: {"content" in data} status: {"status" in data}')
+            print(
+                f'[DEBUG] 前端数据错误 piecesTitle: {"piecesTitle" in data} content: {"content" in data} status: {"status" in data}')
             raise NetworkException(400, "前端数据错误，必须包含piecesTitle、content、status")
 
         if 'seriesId' not in data and 'seriesName' not in data:
@@ -851,16 +861,20 @@ def del_tag():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+
 def __get_tag_by_id(tagId: str) -> Dict:
     return execute_sql_query_one(pooldb, 'select * from tags where tagId=%s', tagId)
 
+
 def __get_tag_by_content(content: str) -> Dict:
     return execute_sql_query(pooldb, 'select * from tags where content=%s', content)
+
 
 def __add_tag(content: str, trans=None) -> int:
     if trans is not None:
         return trans.execute('insert into tags(content) values(%s)', content)
     return execute_sql_write(pooldb, 'insert into tags(content) values(%s)', content)
+
 
 @bp.route('/tag/add', methods=['POST'])
 def add_tag():
@@ -872,8 +886,6 @@ def add_tag():
         if content is None:
             raise NetworkException(400, "前端数据错误，缺少content")
         check_user_before_request(request)
-
-
 
         return build_success_response()
     except NetworkException as e:
@@ -988,6 +1000,7 @@ def __add_tag_series_relation_sql(tagId: str, seriesId: str, trans=None):
         execute_sql_write(pooldb, sql, (tagId, seriesId))
     else:
         trans.execute(sql, (tagId, seriesId))
+
 
 @bp.route('/tag/addSeriesRelation', methods=['GET'])
 def add_tag_series_relation():

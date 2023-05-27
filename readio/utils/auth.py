@@ -10,7 +10,7 @@ import readio.database.connectPool
 from readio.utils import check
 from readio.utils.check import printException
 from readio.utils.myExceptions import NetworkException
-
+from readio.utils.executeSQL import *
 global pooldb
 pooldb = readio.database.connectPool.pooldb
 from readio.utils.buildResponse import *
@@ -179,18 +179,7 @@ def random_gen_username():
 
 
 def get_user_by_id(userId: int) -> dict:
-    try:
-        conn, cursor = pooldb.get_conn()
-        cursor.execute('select id, userName, roles, email, phoneNumber, avator from users where id = %s ', int(userId))
-        row = cursor.fetchone()
-        return row
-
-    except Exception as e:
-        check.printException(e)
-        raise e
-    finally:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+    return execute_sql_query_one(pooldb,'select id, userName, roles, email, phoneNumber, avator from users where id = %s ', int(userId))
 
 
 USER_ROLE_MAP = {
