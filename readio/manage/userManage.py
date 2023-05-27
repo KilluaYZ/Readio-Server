@@ -397,7 +397,7 @@ def __add_user_subscribe(followerId, authorId, trans=None):
     if trans is None:
         return execute_sql_write(pooldb, sql, (followerId, authorId))
     else:
-        return trans.execute(sql, (follwerId, authorId))
+        return trans.execute(sql, (followerId, authorId))
 
 
 def __get_all_followerId_id_by_userid(userId) -> List[Dict]:
