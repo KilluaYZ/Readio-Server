@@ -11,6 +11,7 @@ from flask_cors import CORS  # 跨域
 from readio.auth import appAuth
 from readio.database.init_db import init_db
 from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage
+from readio.manage.fileManage import getFilePathById
 from readio.monitor.monitor import monitor
 from readio.manage import fileManage, worksManage, userManage
 from readio.utils.json import CustomJSONEncoder
@@ -58,6 +59,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
+    print(f'[TEST] filePath = {getFilePathById("0658a5df12791200a99b5e0f26b03e2d53154567c759683d7b355982cff124a6")}')
     app_test(app)
 
     return app

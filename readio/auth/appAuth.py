@@ -1,20 +1,24 @@
 import functools
+from typing import List
+
 from flask import request
 from flask import Blueprint
 from flask import redirect
 from flask import url_for
 from werkzeug.security import check_password_hash, generate_password_hash
-
+# from readio.manage.userManage import __get_all_authorId_id_by_userid, __get_all_followerId_id_by_userid
 from readio.auth.routerdata import admin_router_data, common_router_data, manager_router_data
 from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
 import readio.utils.check as check
+from readio.utils.executeSQL import execute_sql_query
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('auth', __name__, url_prefix='/app/auth')
 
 pooldb = readio.database.connectPool.pooldb
+
 
 def authorize_phoneNumber_password(phoneNumber, passWord):
     try:
@@ -161,12 +165,34 @@ def user_profile_update_user_sql(userId, data):
         raise e
 
 
+def __get_all_followerId_id_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces的id
+    """
+    sql = 'select followerId from user_subscribe where authorId=%s'
+    rows = execute_sql_query(pooldb, sql, userId)
+    rows = list(map(lambda x: int(x['followerId']), rows))
+    return rows
+
+
+def __get_all_authorId_id_by_userid(userId) -> List[Dict]:
+    """
+    通过用户Id来获取该用户所有collect的pieces的id
+    """
+    sql = 'select authorId from user_subscribe where followerId=%s'
+    rows = execute_sql_query(pooldb, sql, userId)
+    rows = list(map(lambda x: int(x['authorId']), rows))
+    return rows
+
+
 # 获取用户详细信息
 @bp.route('/profile', methods=['GET', 'POST'])
 def profile():
     try:
         if request.method == 'GET':
             user = check_user_before_request(request)
+            fansNum = len(__get_all_followerId_id_by_userid(user['id']))
+            subscribeNum = len(__get_all_authorId_id_by_userid(user['id']))
 
             response = {
                 "userInfo": {
@@ -176,8 +202,8 @@ def profile():
                     "phoneNumber": user['phoneNumber'],
                     "avator": user['avator'],
                     "createTime": user['createTime'],
-                    "fansNum": 123,
-                    "subscribeNum": 234,
+                    "followerNum": fansNum,
+                    "subscribeNum": subscribeNum,
                     "hotNum": 678,
                     "roles": [user['roles']],
                     "permissions": ["*:*:*"],
@@ -224,7 +250,7 @@ def updatePwd():
     try:
         data = request.json
         if 'oldPassword' not in data or 'newPassword' not in data:
-            raise NetworkException(400 ,'前端数据错误，不存在oldPassword或newPassword')
+            raise NetworkException(400, '前端数据错误，不存在oldPassword或newPassword')
 
         user = check_user_before_request(request)
 
@@ -261,4 +287,3 @@ def get_routers():
     except Exception as e:
         check.printException(e)
         return build_error_response()
-

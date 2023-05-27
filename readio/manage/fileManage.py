@@ -241,6 +241,14 @@ def saveFileFromClass(fileInfo: dict, content):
     saveFileFromByte(fileInfo, content)
 
 
+def getFilePathById(fileId: str) -> str:
+    rows = __query_res_info_sql({"fileId": fileId})
+    if rows is None or len(rows) == 0:
+        return None
+    fileInfo = rows[0]
+    file_relative_path = f"{os.path.join(BASE_FILE_STORE_DIR, os.path.join(fileInfo['filePath'], fileInfo['fileId']))}.{fileInfo['fileType']}"
+    return file_relative_path
+
 @bp.route('/downloadBinary', methods=['GET'])
 def downloadFileBinary():
     try:
@@ -327,7 +335,7 @@ def get_file_binary_by_id():
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
 
-def uploadFileBinarySql(fileInfo: dict):
+def __upload_file_binary_sql(fileInfo: dict):
     try:
         conn, cursor = pooldb.get_conn()
         fileType = fileInfo['fileType'].lower()
@@ -382,7 +390,7 @@ def uploadFileBinary():
 
         print(f'[DEBUG] fileContent = {data["fileContent"][:50]}')
 
-        uploadFileBinarySql(data)
+        __upload_file_binary_sql(data)
 
         return build_success_response()
 

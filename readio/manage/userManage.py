@@ -404,7 +404,7 @@ def __get_all_followerId_id_by_userid(userId) -> List[Dict]:
     """
     sql = 'select followerId from user_subscribe where authorId=%s'
     rows = execute_sql_query(pooldb, sql, userId)
-    rows = list(map(lambda x: int(x['follwerId']), rows))
+    rows = list(map(lambda x: int(x['followerId']), rows))
     return rows
 
 def __get_all_authorId_id_by_userid(userId) -> List[Dict]:
@@ -452,16 +452,16 @@ def add_user_subscribe():
     关注用户
     """
     try:
-        authorId = request.args.get("userId")
+        authorId = int(request.args.get("userId"))
         if authorId is None:
             raise NetworkException(400, "前端数据缺失，缺少authorId")
 
         user = check_user_before_request(request)
-        userId = user['id']
+        userId = int(user['id'])
 
         print(f'[DEBUG] userId={userId}, authorId={authorId}')
         if userId == authorId:
-            raise NetworkException(400, "无法自己关注自己！")
+            raise NetworkException(400, "不能自己关注自己奥！")
 
         if not __check_id_user_has_subscribed_the_author(userId, authorId):
             # 还没有点赞过
@@ -544,5 +544,4 @@ def get_user_subscribe_follower():
 
     except Exception as e:
         check.printException(e)
-        return build_error_response(code=500, msg='服'
-                                                  '务器内部错误')
+        return build_error_response(code=500, msg='服务器内部错误')
