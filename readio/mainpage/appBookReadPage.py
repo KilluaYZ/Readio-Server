@@ -25,21 +25,27 @@ bp = Blueprint('book_reading', __name__, url_prefix='/app/books/reading')
 pooldb = readio.database.connectPool.pooldb
 
 
+def simplify(text: list):
+    limit = 10
+    for t in text:
+        if len(t['Text']) <= limit:
+            continue
+        t['Text'] = t['Text'][:limit] + '...'
+    return text
+
+
 # 根据文件路径获取内容
 def get_file_content(path):
     file = FileChangeSys(path)
-    print(path)
-    print(file)
-    text = file.Chapter_uniform
-    print(text)
-    return None
+    text = file.decode()  # [dict()]
+    # return simplify(text)
+    return text
 
 
 def get_book_content(bid, user=None):
     data = {}
     book_info = get_book_info_sql(bid)
     book_hash = book_info['sha256']
-    print(book_hash)
     book_path = getFilePathById(book_hash)  # 根据 hash 获取文件路径
     content = get_file_content(book_path)  # 根据文件路径获取内容
     # 构建返回的数据

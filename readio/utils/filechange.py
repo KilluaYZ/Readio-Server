@@ -1,5 +1,6 @@
 # from mobi import Mobi
 import os
+import chardet
 
 import ebooklib
 import mobi
@@ -14,7 +15,6 @@ from pdfminer.pdfparser import PDFParser
 
 
 class Chapter(object):
-
     # 初始化
     def __init__(self, name, text):
         self.Name = name
@@ -27,6 +27,12 @@ class Chapter(object):
         print("章节内容：")
         print(self.Text)
 
+    def to_dict(self):
+        return {
+            'ChapterName': self.Name,
+            'Text': self.Text,
+        }
+
 
 class FileChangeSys(object):
 
@@ -38,11 +44,28 @@ class FileChangeSys(object):
         self.dot_index = None
         self.Type = None
 
+    def decode(self, print_info=None):
+        # 解码文件
+        self.decode_filetype()
+        if print_info:
+            self.print_fileinfo()
+        if self.Type == 'pdf':
+            self.pdf_decode()
+        elif self.Type == 'txt':
+            self.txt_decode()
+        elif self.Type == 'epub':
+            self.epub_decode()
+        elif self.Type == 'mobi':
+            self.mobi_decode()
+        else:
+            print("不支持的文件类型")
+        return [c.to_dict() for c in self.Chapter_uniform]
+
     # 解码Path
     def decode_filetype(self):
         self.Name = os.path.basename(self.Path)
         self.dot_index = self.Name.find('.')
-        self.Type = self.Name[self.dot_index + 1:]
+        self.Type = self.Name[self.dot_index + 1:].lower()
 
     # print文件信息
     def print_fileinfo(self):
@@ -52,6 +75,21 @@ class FileChangeSys(object):
         print(self.Name)
         print("Filetype:")
         print(self.Type)
+
+    def read_file(self, path=None):
+        if path is None:
+            path = self.Path
+        # 使用 chardet 模块自动检测文件编码类型
+        with open(path, 'rb') as f:
+            result = chardet.detect(f.read(1024))
+        # print(result)
+        # if result['encoding'] is None:
+        #     result['encoding'] = 'utf-8'
+        # 根据检测结果打开文件并读取内容
+        with open(path, 'r', encoding=result['encoding']) as f:
+            content = f.read()
+
+        return content
 
     # 如果是pdf类型，直接终端输出
     def pdf_decode(self):
@@ -92,62 +130,27 @@ class FileChangeSys(object):
                     new_chapter_text += out.get_text()
             new_chapter = Chapter(new_chapter_name, new_chapter_text)
             self.Chapter_uniform.append(new_chapter)
-            new_chapter.print_info()
+            # new_chapter.print_info()
 
     # txt文档转pdf文档
     def txt_decode(self):
-        # 暂时：章节名就是书名
-        new_chapter_name = self.Name
-        f = open(self.Path, 'r')
-        new_chapter_text = f.read()
+        # 暂时：章节名就是书名 -> None
+        # new_chapter_name = self.Name
+        new_chapter_name = None
+        new_chapter_text = self.read_file()
         # print(new_chapter_text)
-
         # 合成一个章节
         new_chapter = Chapter(new_chapter_name, new_chapter_text)
-
         self.Chapter_uniform.append(new_chapter)
-
-        new_chapter.print_info()
 
     # epub转pdf
     def epub_decode(self):
-        """
-        path_dot=self.Path.find('.epub')
-        html_path=self.Path[:path_dot]+'.html'
-        changepub=epub2html.Epub2Html(self.Path,html_path)
-        changepub.gen()
-        text_uniform_path=html_path+'/'+self.Path[:path_dot]+'/OEBPS/Text'
-        text_uniform_dir=os.listdir(text_uniform_path)
-        for c in text_uniform_dir:
-            #获取章节名称
-            new_chapter_name=c[:c.find('.xhtml')]
-            #获取章节内容
-            f=open(text_uniform_path+'/'+c,'r',encoding = 'utf-8')
-            xhtml=f.read()
-            soup=BeautifulSoup(xhtml,'lxml')
-            #print(soup)
-            new_chapter_text=''
-            for item in soup.find_all("p"):
-                #print(item.text)
-                new_chapter_text+=item.text
-                new_chapter_text+='\n'
-            if new_chapter_text.isspace():
-                new_chapter_text="该章节可能仅由图片构成"
-        
-            #整合成章节类
-            new_chapter=Chapter(new_chapter_name,new_chapter_text)
-            #加入list
-            self.Chapter_uniform.append(new_chapter)
-            #print下信息
-            new_chapter.print_info()
-        """
         book = epub.read_epub(self.Path)
-
         index = 0
-
         for text in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
             index += 1
-            soup = BeautifulSoup(text.get_content(), 'html')
+            # soup = BeautifulSoup(text.get_content(), 'html')
+            soup = BeautifulSoup(text.get_content(), features='xml')  # 显式指定使用 xml 解析器
             new_chapter_text = ''
             for item in soup.find_all("p"):
                 # print(item.text)
@@ -157,50 +160,30 @@ class FileChangeSys(object):
                 new_chapter_text = "该章节可能仅由图片构成"
 
             new_chapter_name = "第" + str(index) + "章"
-
             # 整合成章节类
             new_chapter = Chapter(new_chapter_name, new_chapter_text)
             # 加入list
             self.Chapter_uniform.append(new_chapter)
             # print下信息
-            new_chapter.print_info()
+            # new_chapter.print_info()
 
     # mobi转pdf
     def mobi_decode(self):
-        """
-        path_dot=self.Path.find('.mobi')
-        new_pdf_path=self.Path[:path_dot]+'.pdf'
         tempdir, filepath = mobi.extract(self.Path)
-        pypandoc.convert_file(filepath,'pdf',outputfile=new_pdf_path,extra_args=['--latex-engine=xelatex'])
-        self.printPDF(new_pdf_path)
-        """
-        tempdir, filepath = mobi.extract(self.Path)
-        print(filepath)
-        new_chapter_name = self.Name
+        # new_chapter_name = self.Name
+        new_chapter_name = None
         # 获取章节内容
-        f = open(filepath, 'r', encoding='utf-8')
-        html = f.read()
+        # f = open(filepath, 'r', encoding='utf-8')
+        # html = f.read()
+        html = self.read_file(path=filepath)
         soup = BeautifulSoup(html, 'lxml')
-        # print(soup)
         new_chapter_text = ''
         for item in soup.find_all("p"):
-            # print(item.text)
             new_chapter_text += item.text
             new_chapter_text += '\n'
         if new_chapter_text.isspace():
             new_chapter_text = "该章节可能仅由图片构成"
-
         # 整合成章节类
         new_chapter = Chapter(new_chapter_name, new_chapter_text)
         # 加入list
         self.Chapter_uniform.append(new_chapter)
-        # print下信息
-        new_chapter.print_info()
-
-
-"""        
-f=FileChangeSys("不能承受的生命之轻 (米兰·昆德拉).epub")
-f.decodeFileType()
-#f.printFileinfo()  
-f.epub_decode()
-"""

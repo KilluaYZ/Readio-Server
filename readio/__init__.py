@@ -59,7 +59,7 @@ def create_app():
     # 启动任务列表
     scheduler.start()
     """ 测试 """
-    print(f'[TEST] filePath = {getFilePathById("0658a5df12791200a99b5e0f26b03e2d53154567c759683d7b355982cff124a6")}')
+    # print(f'[TEST] filePath = {getFilePathById("0658a5df12791200a99b5e0f26b03e2d53154567c759683d7b355982cff124a6")}')
     # app_test(app)
 
     return app
@@ -79,9 +79,9 @@ def app_test(app):
         """ test bookshelf """
         # app_test_bookshelf(client)
         """ test book details"""
-        # app_test_book_details(client)
+        app_test_book_details(client)
         """ test book reading """
-        app_test_book_reading(client)
+        # app_test_book_reading(client)
 
 
 def app_test_book_reading(client, login_data: Dict = None, headers=None):
@@ -97,6 +97,8 @@ def app_test_book_reading(client, login_data: Dict = None, headers=None):
         token = resp_dict['data']['token']
         headers['Authorization'] = token
     resp_dict = {}
+    """ ------------- book reading ------------- """
+    # 1->epub 2/3->txt 4->mobi 14->pdf
     url_and_params = get_url('book_reading.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
 
@@ -112,13 +114,13 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         # login to get token
         resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
         token = resp_dict['data']['token']
-        # headers['Authorization'] = token
-        headers['Authorization'] = '5cf397accdcf195bfe983af257fdbbf14e1fc83d'
+        headers['Authorization'] = token
+        # headers['Authorization'] = '5cf397accdcf195bfe983af257fdbbf14e1fc83d'
         headers['depth'] = 3
     resp_dict = {}
     """ ------------- book details ------------- """
     """ show book details """
-    url_and_params = get_url('book_detail.index', book_id=24)
+    url_and_params = get_url('book_detail.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
     """ like """
     url_and_params = get_url('book_detail.update_like_book', book_id=3)
