@@ -426,7 +426,7 @@ def __get_all_followers_obj_by_userid(userId) -> List[Dict]:
           'users.roles as roles, users.phoneNumber as phoneNumber, ' \
           'users.avator as avator from users, user_subscribe ' \
           'where users.id=user_subscribe.followerId ' \
-          'and user_subscribe.authorId = %s order by createTime desc'
+          'and user_subscribe.authorId = %s order by user_subscribe.createTime desc'
     return execute_sql_query(pooldb, sql, userId)
 
 def __get_all_authors_obj_by_userid(userId) -> List[Dict]:
@@ -437,7 +437,7 @@ def __get_all_authors_obj_by_userid(userId) -> List[Dict]:
           'users.roles as roles, users.phoneNumber as phoneNumber, ' \
           'users.avator as avator from users, user_subscribe ' \
           'where users.id=user_subscribe.authorId ' \
-          'and user_subscribe.followerId = %s order by createTime desc'
+          'and user_subscribe.followerId = %s order by user_subscribe.createTime desc'
     return execute_sql_query(pooldb, sql, userId)
 
 def __check_id_user_has_subscribed_the_author(followerId, authorId) -> bool:
@@ -457,13 +457,13 @@ def add_user_subscribe():
     关注用户
     """
     try:
-        authorId = int(request.args.get("userId"))
+        authorId = request.args.get("userId")
         if authorId is None:
             raise NetworkException(400, "前端数据缺失，缺少authorId")
 
         user = check_user_before_request(request)
         userId = int(user['id'])
-
+        authorId = int(authorId)
         print(f'[DEBUG] userId={userId}, authorId={authorId}')
         if userId == authorId:
             raise NetworkException(400, "不能自己关注自己奥！")
@@ -521,7 +521,7 @@ def get_user_subscribe_author():
     try:
         user = check_user_before_request(request)
         userId = user['id']
-        rows = __get_all_authorId_id_by_userid(userId)
+        rows = __get_all_authors_obj_by_userid(userId)
 
         return build_success_response(data=rows, length=len(rows))
 
@@ -540,7 +540,7 @@ def get_user_subscribe_follower():
     try:
         user = check_user_before_request(request)
         userId = user['id']
-        rows = __get_all_followerId_id_by_userid(userId)
+        rows = __get_all_followers_obj_by_userid(userId)
 
         return build_success_response(data=rows, length=len(rows))
 
