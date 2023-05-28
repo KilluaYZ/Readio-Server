@@ -161,10 +161,10 @@ def check_user_before_request(req, raise_exc=True, roles='common') -> Optional[D
     # 检查访问凭证是否有效
     check_tokens_reponse_if_not200(token, roles)
 
-    # print(f'[DEBUG] token in auth = {token}')
+    # print(f'[DEBUG] check_user_before_request -> token = {token}')
     # 经过check_token_response_if_not_200的检查，可以保证token是存在的，且本次访问符合对应的权限
     user = get_user_by_token(token)  # 根据访问凭证获取对应的用户信息对象
-    # print(f'[DEBUG] user in auth = {user}')
+    # print(f'[DEBUG] check_user_before_request -> user[id] = {user["id"]}')
     return user
 
 

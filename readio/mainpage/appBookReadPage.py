@@ -53,6 +53,7 @@ def get_book_content(bid, user=None):
     data['bookName'] = book_info['bookName']
     data['authorName'] = book_info['authorName']
     data['abstract'] = book_info['abstract']
+    data['size'] = len(content)
     data['content'] = content
     return data
 
