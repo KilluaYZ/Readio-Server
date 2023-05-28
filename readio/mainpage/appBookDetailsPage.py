@@ -58,21 +58,15 @@ def get_book_details(bid, user=None):
     if user is None:
         for comment in comments:
             comment = process_comment_time(comment)
-            # comment['liked'] = False
-            comment['liked'] = 0
-        # details['added'] = False
-        # details['liked'] = False
-        details['added'] = 0
-        details['liked'] = 0
+            comment['liked'] = False
+        details['added'] = False
+        details['liked'] = False
     else:
         for comment in comments:
             comment = process_comment_time(comment)
-            # comment['liked'] = check_comment_liked(pooldb, user['id'], comment['commentId'])
-            comment['liked'] = 1 if check_comment_liked(pooldb, user['id'], comment['commentId']) else 0
-        # details['added'] = check_book_added(pooldb, user['id'], bid)
-        # details['liked'] = check_book_liked(pooldb, user['id'], bid)
-        details['added'] = 1 if check_book_added(pooldb, user['id'], bid) else 0
-        details['liked'] = 1 if check_book_liked(pooldb, user['id'], bid) else 0
+            comment['liked'] = check_comment_liked(pooldb, user['id'], comment['commentId'])
+        details['added'] = check_book_added(pooldb, user['id'], bid)
+        details['liked'] = check_book_liked(pooldb, user['id'], bid)
     comments_data['size'] = len(comments)
     comments_data['data'] = comments
     # 信息汇总 -> 书籍详情 (details)
@@ -175,8 +169,7 @@ def get_comment_tree_recursive(comment_id: int, depth: int, user) -> List[dict]:
         reply_id = reply['commentId']
         reply_cmt = get_comment_sql(reply_id)
         sub_tree = reply_cmt
-        # sub_tree['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
-        sub_tree['liked'] = 0 if user is None else (1 if check_comment_liked(pooldb, user['id'], reply_id) else 0)
+        sub_tree['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
         replies = get_comment_tree_recursive(reply_id, depth - 1, user)
         sub_tree['size'] = len(replies)
         sub_tree['replies'] = replies
@@ -204,8 +197,7 @@ def get_sub_comments_stack(comment_id: int, user) -> List[dict]:
         for reply in reply_list:
             reply_id = reply['commentId']  # 获取子评论的 id
             reply_cmt = get_comment_sql(reply_id)
-            # reply_cmt['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
-            reply_cmt['liked'] = 0 if user is None else (1 if check_comment_liked(pooldb, user['id'], reply_id) else 0)
+            reply_cmt['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], reply_id)
             reply_cmt['reply_to'] = comment_id
             stack.append(reply_id)  # 将子评论 id 加入栈中，以便后续处理
             result.append(reply_cmt)  # 将子评论加入结果列表中
@@ -228,8 +220,7 @@ def get_comment_details(comment_id, depth, user=None):
     # 组织结果
     details = comment
     details['size'] = len(sub_comment_list)
-    # details['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], comment_id)
-    details['liked'] = 0 if user is None else (1 if check_comment_liked(pooldb, user['id'], comment_id) else 0)
+    details['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], comment_id)
     details['comments'] = sub_comment_list
     return details
 
@@ -338,10 +329,10 @@ def index(book_id):
         try:
             # 检查是否有用户 token ，有返回用户，否则返回 None
             user = check_user_before_request(request, raise_exc=False)
-            # print(f"[DEBUG] index -> user[id] = {user['id']}")
+            # print(f"[DEBUG] user = {user}")
             details = get_book_details(book_id, user)
             data = details
-            # print(f"[DEBUG] index -> response = {data['added'], data['liked']}")
+            # print(f"[DEBUG] response = {data}")
             response = build_success_response(data)
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
