@@ -8,6 +8,7 @@ from flask import url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 # from readio.manage.userManage import __get_all_authorId_id_by_userid, __get_all_followerId_id_by_userid
 from readio.auth.routerdata import admin_router_data, common_router_data, manager_router_data
+from readio.manage.fileManage import __upload_file_binary_sql
 from readio.utils.buildResponse import *
 from readio.utils.auth import *
 import readio.database.connectPool
@@ -287,3 +288,131 @@ def get_routers():
     except Exception as e:
         check.printException(e)
         return build_error_response()
+
+
+def __user_avatar_add_sql(userId, fileId, trans=None):
+    sql = 'insert into user_avatar_history(userId, fileId) values(%s, %s) '
+    if trans is None:
+        execute_sql_write(sql, (userId, fileId))
+    else:
+        trans.execute(sql, (userId, fileId))
+
+
+def __user_avatar_query_sql(queryParam: dict) -> List[Dict]:
+    sql = 'select * from user_avatar_history '
+    value_list = []
+    sql_list = []
+    if 'fileId' in queryParam or 'userId' in queryParam:
+        sql += ' where 1=1 '
+        if 'fileId' in queryParam:
+            value_list.append(queryParam['fileId'])
+            sql_list.append(' and fileId = %s ')
+        if 'userId' in queryParam:
+            value_list.append(queryParam['userId'])
+            sql_list.append(' and userId = %s ')
+
+    for sql_str in sql_list:
+        sql += sql_str
+    sql += ' order by updateTime desc '
+    rows = execute_sql_query(pooldb, sql, tuple(value_list))
+    return rows
+
+
+def __check_if_history_is_exist(userId, fileId) -> bool:
+    queryParam = {}
+    queryParam['fileId'] = fileId
+    queryParam['userId'] = userId
+    rows = __user_avatar_query_sql(queryParam)
+    if rows is not None and len(rows) > 0:
+        return True
+    return False
+
+
+def __update_user_avatar_updateTime(userId, fileId, trans=None):
+    sql = 'update user_avatar_history set updateTime=now() where userId=%s and fileId=%s'
+    if trans is None:
+        execute_sql_write(pooldb, sql, (userId, fileId))
+    else:
+        trans.execute(sql, (userId, fileId))
+
+def __update_user_avatar(userId, fileId, trans=None):
+    sql = 'update users set avator=%s where id = %s'
+    if trans is None:
+        execute_sql_write(pooldb, sql, (fileId, userId))
+    else:
+        trans.execute(sql, (fileId, userId))
+
+# 用户历史头像
+@bp.route('/avatar/add', methods=['POST'])
+def add_user_avatar():
+    try:
+        data = request.json
+        if 'fileName' not in data or 'fileType' not in data or 'fileContent' not in data:
+            return build_error_response(400, '上传错误，fileName,fileType,fileContent信息不全')
+
+        user = check_user_before_request(request)
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        fileId = __upload_file_binary_sql(data, trans)
+        userId = user['id']
+        if __check_if_history_is_exist(userId, fileId):
+            # 如果存在了，就只更新一下时间
+            __update_user_avatar_updateTime(userId, fileId, trans)
+        else:
+            # 否则就加进去
+            __user_avatar_add_sql(userId, fileId, trans)
+
+        __update_user_avatar(userId, fileId, trans)
+        trans.commit()
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(500, "服务器内部错误")
+
+@bp.route('/avatar/get', methods=['GET'])
+def get_user_avatar():
+    try:
+        user = check_user_before_request(request)
+        queryParam = {}
+        queryParam['userId'] = user['id']
+        rows = __user_avatar_query_sql(queryParam)
+
+        return build_success_response(data=rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(500, "服务器内部错误")
+
+@bp.route('/avatar/update', methods=['POST'])
+def update_user_avatar():
+    try:
+        data = request.json
+        if 'fileId' not in data:
+            return build_error_response(400, '上传错误，fileId缺失')
+
+        fileId = data['fileId']
+        user = check_user_before_request(request)
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        userId = user['id']
+        if __check_if_history_is_exist(userId, fileId):
+            # 如果存在了，就只更新一下时间
+            __update_user_avatar_updateTime(userId, fileId, trans)
+        else:
+            # 否则就加进去
+            __user_avatar_add_sql(userId, fileId, trans)
+
+        __update_user_avatar(userId, fileId, trans)
+        trans.commit()
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(500, "服务器内部错误")

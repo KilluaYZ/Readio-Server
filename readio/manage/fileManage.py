@@ -335,43 +335,39 @@ def get_file_binary_by_id():
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
 
-def __upload_file_binary_sql(fileInfo: dict):
-    try:
-        conn, cursor = pooldb.get_conn()
-        fileType = fileInfo['fileType'].lower()
-        fileInfo['fileType'] = fileInfo['fileType'].lower()
-        fileName = fileInfo['fileName']
-        fileContent = base64.b64decode(fileInfo['fileContent'])
-        hashObj = hashlib.sha256()
-        hashObj.update(fileContent)
-        fileInfo['fileId'] = hashObj.hexdigest()
-        if __check_if_fileId_is_exist(fileInfo['fileId']):
-            raise NetworkException(400, '资源文件已经存在，请勿重复添加')
+#上传文件后返回fileId
+def __upload_file_binary_sql(fileInfo: dict, trans=None) -> str:
 
-        if 'filePath' not in fileInfo:
-            if fileType in PICTURE_TYPES:
-                filePath = 'pic'
-            elif fileType in BOOK_TYPES:
-                filePath = 'book'
-            else:
-                filePath = 'default'
-            fileInfo['filePath'] = filePath
+    fileType = fileInfo['fileType'].lower()
+    fileInfo['fileType'] = fileInfo['fileType'].lower()
+    fileName = fileInfo['fileName']
+    fileContent = base64.b64decode(fileInfo['fileContent'])
+    hashObj = hashlib.sha256()
+    hashObj.update(fileContent)
+    fileInfo['fileId'] = hashObj.hexdigest()
+    if __check_if_fileId_is_exist(fileInfo['fileId']):
+        return fileInfo['fileId']
+        # raise NetworkException(400, '资源文件已经存在，请勿重复添加')
 
-        saveFileFromByte(fileInfo, fileContent)
+    if 'filePath' not in fileInfo:
+        if fileType in PICTURE_TYPES:
+            filePath = 'pic'
+        elif fileType in BOOK_TYPES:
+            filePath = 'book'
+        else:
+            filePath = 'default'
+        fileInfo['filePath'] = filePath
 
-        cursor.execute('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
-                       (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
-        conn.commit()
-        pooldb.close_conn(conn, cursor)
+    saveFileFromByte(fileInfo, fileContent)
 
-    except NetworkException as e:
-        raise e
+    if trans is None:
+        execute_sql_write('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
+                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
+    else:
+        trans.execute('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
+                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
 
-    except Exception as e:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
-        raise e
-
+    return fileInfo['fileId']
 
 def __check_if_fileId_is_exist(fileId: str) -> bool:
     row = execute_sql_query_one(pooldb, 'select * from file_info where fileId = %s', fileId)
