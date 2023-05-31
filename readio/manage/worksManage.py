@@ -2,6 +2,7 @@
 二创管理
 """
 import functools
+import random
 from typing import List
 
 from flask import request
@@ -24,23 +25,19 @@ pooldb = readio.database.connectPool.pooldb
 
 
 def __random_get_pieces_brief_sql(size: int) -> list:
-    try:
-        conn, cursor = pooldb.get_conn()
-        cursor.execute(
-            'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces')
-        rows = cursor.fetchall()
+        sql = 'select piecesId from pieces'
+        ids = execute_sql_query(pooldb, sql)
         # 随机从列表中抽取size个元素
-        if size > len(rows):
-            size = len(rows)
-        res = random.sample(rows, size)
-        return res
+        if size > len(ids):
+            size = len(ids)
+        ids = list(map(lambda x: x["piecesId"], ids))
+        rand_ids = random.sample(ids, size)
+        id_string = ','.join(str(i) for i in rand_ids)
+        sql = f'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces ' \
+              f'where piecesId in ({id_string})'
+        rows = execute_sql_query(pooldb, sql)
 
-    except Exception as e:
-        check.printException(e)
-        raise e
-    finally:
-        if conn is not None:
-            pooldb.close_conn(conn, cursor)
+        return rows
 
 
 def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:

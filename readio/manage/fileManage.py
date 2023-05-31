@@ -358,14 +358,22 @@ def __upload_file_binary_sql(fileInfo: dict, trans=None) -> str:
             filePath = 'default'
         fileInfo['filePath'] = filePath
 
+    useForHeader = 0
+    if 'useForHeader' in fileInfo:
+        useForHeader = bool(fileInfo['useForHeader'])
+        if useForHeader:
+            useForHeader = 1
+        else:
+            useForHeader = 0
+
     saveFileFromByte(fileInfo, fileContent)
 
     if trans is None:
-        execute_sql_write('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
-                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
+        execute_sql_write(pooldb ,'insert into file_info(fileId,fileName,fileType,filePath,useForHeader) values(%s,%s,%s,%s,%s)',
+                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath'], useForHeader))
     else:
-        trans.execute('insert into file_info(fileId,fileName,fileType,filePath) values(%s,%s,%s,%s)',
-                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath']))
+        trans.execute('insert into file_info(fileId,fileName,fileType,filePath,useForHeader) values(%s,%s,%s,%s,%s)',
+                          (fileInfo['fileId'], fileName, fileType, fileInfo['filePath'],useForHeader))
 
     return fileInfo['fileId']
 
@@ -490,6 +498,12 @@ def __query_res_info_sql(query_param: dict) -> list:
 
         cursor.execute(sql, tuple(arg_list))
         rows = cursor.fetchall()
+        for i in range(len(rows)):
+            if int(rows[i]['useForHeader']) == 1:
+                rows[i]['useForHeader'] = True
+            else:
+                rows[i]['useForHeader'] = False
+
         return rows
 
     except Exception as e:
@@ -519,7 +533,7 @@ def getResInfo():
         return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
-        check.printException(e)
+        print(e.with_traceback())
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
 
@@ -528,10 +542,15 @@ def update_res_info():
     try:
         fileName = request.json.get('fileName')
         fileId = request.json.get('fileId')
+        useForHeader = request.json.get('useForHeader')
         if fileName is None or fileId is None:
             raise NetworkException(code=400, msg='前端数据错误，缺少fileName或fileId')
-
-        execute_sql_write(pooldb, 'update file_info set fileName=%s where fileId = %s', (fileName, fileId))
+        useForHeader = bool(useForHeader)
+        if useForHeader:
+            useForHeader = 1
+        else:
+            useForHeader = 0
+        execute_sql_write(pooldb, 'update file_info set fileName=%s, useForHeader = %s where fileId = %s', (fileName, useForHeader, fileId))
 
         return build_success_response()
 
@@ -539,7 +558,7 @@ def update_res_info():
         return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
-        check.printException(e)
+        print(e.with_traceback())
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
 
 
@@ -547,7 +566,7 @@ def update_res_info():
 def random_get_img_id():
     try:
         sql = 'select count(*) as count from file_info where fileType in ' \
-              ' ("webp", "jpg", "jpeg", "png", "gif", "svg") '
+              ' ("webp", "jpg", "jpeg", "png", "gif", "svg") and useForHeader=1'
         count = execute_sql_query_one(pooldb, sql)
         if count is None:
             raise Exception("无法获取count")
@@ -560,7 +579,7 @@ def random_get_img_id():
         idx = randint(0, count-1)
 
         sql = 'select * from file_info where fileType in ' \
-              '("webp", "jpg", "jpeg", "png", "gif", "svg") ' \
+              '("webp", "jpg", "jpeg", "png", "gif", "svg") and useForHeader=1 ' \
               'limit 1 offset %s '
 
         row = execute_sql_query_one(pooldb, sql, idx)
@@ -573,5 +592,6 @@ def random_get_img_id():
         return build_error_response(code=e.code, msg=e.msg)
 
     except Exception as e:
-        check.printException(e)
+        # check.printException(e)
+        print(e.with_traceback())
         return build_error_response(code=500, msg='服务器内部错误，无法获取该资源')
