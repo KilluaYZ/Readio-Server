@@ -25,7 +25,6 @@ bp = Blueprint('worksManage', __name__, url_prefix='/works')
 
 pooldb = readio.database.connectPool.pooldb
 
-
 def __random_get_pieces_brief_sql(size: int) -> list:
         sql = 'select piecesId from pieces'
         ids = execute_sql_query(pooldb, sql)
@@ -675,13 +674,18 @@ def del_pieces():
         return build_error_response(code=500, msg='服务器内部错误')
 
 def __change_pieces_status(piecesId, trans=None):
-    sql = 'select status where piecesId = %s'
+    sql = 'select status from pieces where piecesId = %s'
     row = execute_sql_query_one(pooldb, sql, piecesId)
     if row is None:
-        
-    
+        raise NetworkException(400, '对应的pieces不存在')
+
+    status = int(row['status'])
+    if status == 0:
+        status = 1
+    else:
+        status = 0
     sql = 'update pieces set status = %s where piecesId = %s'
-    
+
     if trans is None:
         return execute_sql_write(pooldb, sql, (status, piecesId))
     else:
@@ -701,11 +705,11 @@ def change_pieces_status():
 
         if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
             # 如果这个seires属于发出请求的用户，则可以操作
-            __change_pieces_status(piecesId, status)
+            __change_pieces_status(piecesId)
         else:
             # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
             check_user_before_request(request, roles='manager')
-            __change_pieces_status(piecesId, status)
+            __change_pieces_status(piecesId)
         
         return build_success_response()
     
@@ -776,14 +780,42 @@ def del_series():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+def __update_pieces_sql(piecesId, content, trans=None):
+    sql = 'update pieces set content = %s where piecesId = %s'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (content, piecesId))
+    else:
+        return trans.execute(sql, (content, piecesId))
 
 @bp.route('/updatePieces', methods=['POST'])
 def update_pieces():
     """
     更新一章
     """
-    return build_success_response()
+    try:
+        piecesId = request.json.get("piecesId")
+        content = request.json.get('content')
+        if piecesId is None or content is None:
+            raise NetworkException(400, '前端参数缺失，缺少piecesId或content')
 
+        user = check_user_before_request(request, roles='common')
+
+        if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
+            # 如果这个seires属于发出请求的用户，则可以操作
+            __update_pieces_sql(piecesId, content)
+        else:
+            # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
+            check_user_before_request(request, roles='manager')
+            __update_pieces_sql(piecesId, content)
+
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
 
 def __update_series_sql(data: dict):
     try:
