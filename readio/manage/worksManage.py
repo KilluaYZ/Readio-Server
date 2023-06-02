@@ -18,6 +18,8 @@ from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
 from readio.manage.userManage import get_user_by_id_aux
 
+
+
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
 
@@ -117,6 +119,11 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     # print(f'[DEBUG] rows = {rows}')
     return rows
 
+def __get_all_pieces_count() -> int:
+    sql = 'select COUNT(*) from pieces'
+    row = execute_sql_query_one(pooldb, sql)
+    count = int(row['COUNT(*)'])
+    return count
 
 @bp.route('/getPiecesBrief', methods=['GET'])
 def get_bref():
@@ -141,6 +148,16 @@ def get_bref():
                 pageNum = int(pageNum)
                 rows = rows[pageSize * (pageNum - 1): pageSize * pageNum]
             print('[DEBUG] 分页完成')
+        elif mode == 'recommend':
+            """
+            启用推荐方式，每次获取前端的当前访问次数，然后根据访问次数确定推荐内容
+            如果没有给访问次数，则按照随机推荐
+            """
+            queryTimes = request.args.get('queryTimes')
+            if queryTimes is None:
+                # 按照随机方式推荐
+                rows = __random_get_pieces_brief_sql(15)
+            
 
         # 查找最热门的标签
         for i in range(len(rows)):
@@ -614,13 +631,84 @@ def add_series():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
-@bp.route('/delPieces', methods=['POST'])
+def __del_pieces_sql(piecesId, trans=None):
+    sql = 'delete from pieces where piecesId = %s'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, piecesId)
+    else:
+        return trans.execute(sql, piecesId)
+
+
+def __check_if_pieces_is_belong_to_user(piecesId, userId) -> bool:
+    sql = 'select * from pieces where piecesId = %s and userId = %s'
+    row = execute_sql_query_one(pooldb, sql, (piecesId, userId))
+    if row is not None:
+        return True
+    return False
+
+@bp.route('/delPieces', methods=['GET'])
 def del_pieces():
     """
     删除一章
     """
-    return build_success_response()
+    try:
+        piecesId = request.args.get('piecesId')
+        if piecesId is None:
+            raise(400, "前端缺少重要参数piecesId")
+        
+        user = check_user_before_request(request, roles='common')
 
+        if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
+            # 如果这个seires属于发出请求的用户，则可以操作
+            __del_pieces_sql(piecesId)
+        else:
+            # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
+            check_user_before_request(request, roles='manager')
+            __del_pieces_sql(piecesId)
+
+        return build_success_response()
+    
+    except NetworkException as e:
+            return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+def __change_pieces_status(piecesId, status, trans=None):
+    sql = 'update pieces set status = %s where piecesId = %s'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (status, piecesId))
+    else:
+        return trans.execute(sql, (status, piecesId))
+
+@bp.route('/changePiecesStatus', methods=['GET'])
+def change_pieces_status():
+    """
+    修改pieces状态
+    """
+    try:
+        piecesId = request.args.get('piecesId')
+        status = request.args.get('status')
+        if piecesId is None:
+            raise(400, "前端缺少重要参数piecesId, status")
+        
+        user = check_user_before_request(request, roles='common')
+
+        if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
+            # 如果这个seires属于发出请求的用户，则可以操作
+            __change_pieces_status(piecesId, status)
+        else:
+            # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
+            check_user_before_request(request, roles='manager')
+            __change_pieces_status(piecesId, status)
+        
+        return build_success_response()
+    
+    except NetworkException as e:
+            return build_error_response(code=e.code, msg=e.msg)
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
 
 def __check_if_all_series_are_belong_to_user(seriesIdList: list, userId: str) -> bool:
     try:
@@ -1268,6 +1356,38 @@ def get_pieces_collect():
         user = check_user_before_request(request)
         userId = user['id']
         rows = __get_all_collect_pieces_obj_by_userid(userId)
+
+        return build_success_response(data=rows, length=len(rows))
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+    
+
+from readio.mainpage.appBookDetailsPage import get_comment_sql, get_comment_replies_sql, get_sub_comment_ids_stack, get_comment_tree_recursive, get_sub_comments_stack
+
+@bp.route('/pieces/comments/add', methods=['POST'])
+def add_pieces_comments_add():
+    """
+    为pieces添加评价
+    """
+    try:
+        piecesId = request.json.get("piecesId")
+        content = request.json.get("content")
+        if piecesId is None:
+            raise NetworkException(400, '前端参数错误，未传入piecesId')
+        if content is None:
+            raise NetworkException(400, '请填写评论内容')
+        
+        user = check_user_before_request(request)
+        userId = user['id']
+
+        comment_id = add_comments_sql()
+
+        
 
         return build_success_response(data=rows, length=len(rows))
 
