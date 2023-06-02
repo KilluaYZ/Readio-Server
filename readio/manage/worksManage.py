@@ -674,8 +674,14 @@ def del_pieces():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
-def __change_pieces_status(piecesId, status, trans=None):
+def __change_pieces_status(piecesId, trans=None):
+    sql = 'select status where piecesId = %s'
+    row = execute_sql_query_one(pooldb, sql, piecesId)
+    if row is None:
+        
+    
     sql = 'update pieces set status = %s where piecesId = %s'
+    
     if trans is None:
         return execute_sql_write(pooldb, sql, (status, piecesId))
     else:
@@ -688,9 +694,8 @@ def change_pieces_status():
     """
     try:
         piecesId = request.args.get('piecesId')
-        status = request.args.get('status')
         if piecesId is None:
-            raise(400, "前端缺少重要参数piecesId, status")
+            raise(400, "前端缺少重要参数piecesId")
         
         user = check_user_before_request(request, roles='common')
 
