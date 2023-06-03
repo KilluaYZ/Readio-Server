@@ -5,8 +5,8 @@ from readio.utils.executeSQL import execute_sql_query, execute_sql_query_one
 
 
 def printException(e):
-    # print(f"[ERROR]{__file__}::{inspect.getframeinfo(inspect.currentframe().f_back)[2]} \n {e}")
-    print(f"[ERROR] {e.with_traceback()}")
+    print(f"[ERROR]{__file__}::{inspect.getframeinfo(inspect.currentframe().f_back)[2]} \n {e}")
+    # print(f"[ERROR] {e.with_traceback()}")
 
 def is_number(s):
     try:
