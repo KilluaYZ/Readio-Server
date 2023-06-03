@@ -17,7 +17,7 @@ import readio.utils.check as check
 from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
 from readio.manage.userManage import get_user_by_id_aux
-from readio.mainpage.appBookDetailsPage import get_sub_comment_ids_stack, check_comment_liked, get_comment_details
+from readio.mainpage.appBookDetailsPage import get_sub_comment_ids_stack, check_comment_liked, get_comment_details, check_comment_liked
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
@@ -389,7 +389,6 @@ def get_pieces_detail():
             user = check_user_before_request(request)
         except Exception as e:
             user = None
-
         pieces_comments = __pieces_get_comments_detail_one_depth_reply(pieceId, user)
         piece['comments'] = pieces_comments
 
@@ -1436,7 +1435,7 @@ def get_pieces_collect():
         return build_error_response(code=500, msg='服务器内部错误')
 
 
-def __pieces_comment_add_sql(piecesId: int, userId: int, content: str, trans: SqlTransaction) -> int:
+def __pieces_comment_add_sql(piecesId: int, userId: int, content: str, trans=None) -> int:
     # 修改 comments 表
     add_c_sql = 'insert into comments(userId, content) values(%s,%s)'
     comment_id = trans.execute(add_c_sql, (userId, content))
@@ -1447,7 +1446,7 @@ def __pieces_comment_add_sql(piecesId: int, userId: int, content: str, trans: Sq
     return comment_id
 
 
-def __pieces_reply_comment_sql(uid: int, parent_cid: int, content: str, trans: SqlTransaction):
+def __pieces_reply_comment_sql(uid: int, parent_cid: int, content: str, trans=None):
     # 修改 comments 表
     add_c_sql = 'insert into comments(userId, content,likes) values(%s,%s,%s)'
     args = uid, content, 0  # tuple
@@ -1460,7 +1459,7 @@ def __pieces_reply_comment_sql(uid: int, parent_cid: int, content: str, trans: S
     return comment_id
 
 
-def __pieces_update_comment_sql(uid: int, cid: int, trans: SqlTransaction, content=None, like=None):
+def __pieces_update_comment_sql(uid: int, cid: int, trans=None, content=None, like=None):
     """
     更新一条评论记录，包括内容和点赞数
     注意： 数据库 comment_likes 表中设置了触发器更新 comments，所以点赞或取消只需要更新 comment_likes
@@ -1488,7 +1487,7 @@ def __pieces_update_comment_sql(uid: int, cid: int, trans: SqlTransaction, conte
             raise NetworkException(400, 'Invalid like (must be 0 or 1)')
 
 
-def __pieces_del_comments_sql(uid: int, cid: int, trans: SqlTransaction) -> int:
+def __pieces_del_comments_sql(uid: int, cid: int, trans=None) -> int:
     """
     删除一条评论记录和与之相关的 comment_book 记录。
     注意： 数据库 comment_book 表中设置了级联删除，仅需删除 comments 表中数据即可
@@ -1508,7 +1507,7 @@ def __pieces_del_comments_sql(uid: int, cid: int, trans: SqlTransaction) -> int:
         return trans.execute(pooldb, del_c_sql, c_args)
 
 
-def __pieces_del_replies_sql(uid: int, cid: int, trans: SqlTransaction):
+def __pieces_del_replies_sql(uid: int, cid: int, trans=None):
     """
     删除一条回复记录和与之相关的 comment_replies 记录。
     注意： 数据库 comment_replies 表中设置了级联删除，仅需删除 comments 表中数据即可
@@ -1562,7 +1561,6 @@ def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> Li
             'commentId': res['commentId'],
             'content': res['content'],
             'user': parent_user,
-            'toUser': None,
             'createTime': res['createTime'],
             'likes': res['likes']
         }
@@ -1571,6 +1569,8 @@ def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> Li
             tmp_comment_obj['isYours'] = True
         else:
             tmp_comment_obj['isYours'] = False
+
+        tmp_comment_obj['liked'] = False if user is None else check_comment_liked(pooldb, user['id'], tmp_comment_obj['commentId'])
 
         comments_objs.append(tmp_comment_obj)
 
@@ -1589,6 +1589,9 @@ def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> Li
                 tmp_sub_comments_obj['isYours'] = True
             else:
                 tmp_sub_comments_obj['isYours'] = False
+
+            tmp_sub_comments_obj['liked'] = False if user is None else check_comment_liked(pooldb, user['id'],
+                                                                                      tmp_sub_comments_obj['commentId'])
 
             comments_objs.append(tmp_sub_comments_obj)
 
@@ -1717,6 +1720,64 @@ def del_pieces_comments():
             check_user_before_request(request, roles='manager')
             __pieces_del_comments_sql(user['id'], commentId, trans)
         trans.commit()
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+def __add_comment_like_sql(commentId: int, userId: int, trans=None) -> int:
+    sql = 'insert into comment_likes(userId, commentId) values(%s, %s)'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (userId, commentId))
+    else:
+        return trans.execute(sql, (userId, commentId))
+
+def __del_comment_like_sql(commentId: int, userId: int, trans=None) -> int:
+    sql = 'delete from comment_likes where userId = %s and commentId = %s'
+    if trans is None:
+        return execute_sql_write(pooldb, sql, (userId, commentId))
+    else:
+        return trans.execute(sql, (userId, commentId))
+
+@bp.route('/pieces/comments/like/add', methods=['GET'])
+def add_pieces_comment_like():
+    """
+    为评论点赞
+    """
+    try:
+        commentId = request.args.get("commentId")
+        if commentId is None:
+            raise NetworkException(400, '前端参数错误，未传入commentId')
+
+        user = check_user_before_request(request, roles='common')
+        __add_comment_like_sql(commentId, user['id'])
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+@bp.route('/pieces/comments/like/del', methods=['GET'])
+def del_pieces_comment_like():
+    """
+    取消评论点赞
+    """
+    try:
+        commentId = request.args.get("commentId")
+        if commentId is None:
+            raise NetworkException(400, '前端参数错误，未传入commentId')
+
+        user = check_user_before_request(request, roles='common')
+        __del_comment_like_sql(commentId, user['id'])
 
         return build_success_response()
 
