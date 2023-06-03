@@ -17,28 +17,28 @@ import readio.utils.check as check
 from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
 from readio.manage.userManage import get_user_by_id_aux
-
-
+from readio.mainpage.appBookDetailsPage import get_sub_comment_ids_stack, check_comment_liked, get_comment_details
 
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
 
 pooldb = readio.database.connectPool.pooldb
 
-def __random_get_pieces_brief_sql(size: int) -> list:
-        sql = 'select piecesId from pieces'
-        ids = execute_sql_query(pooldb, sql)
-        # 随机从列表中抽取size个元素
-        if size > len(ids):
-            size = len(ids)
-        ids = list(map(lambda x: x["piecesId"], ids))
-        rand_ids = random.sample(ids, size)
-        id_string = ','.join(str(i) for i in rand_ids)
-        sql = f'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces ' \
-              f'where piecesId in ({id_string})'
-        rows = execute_sql_query(pooldb, sql)
 
-        return rows
+def __random_get_pieces_brief_sql(size: int) -> list:
+    sql = 'select piecesId from pieces'
+    ids = execute_sql_query(pooldb, sql)
+    # 随机从列表中抽取size个元素
+    if size > len(ids):
+        size = len(ids)
+    ids = list(map(lambda x: x["piecesId"], ids))
+    rand_ids = random.sample(ids, size)
+    id_string = ','.join(str(i) for i in rand_ids)
+    sql = f'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces ' \
+          f'where piecesId in ({id_string})'
+    rows = execute_sql_query(pooldb, sql)
+
+    return rows
 
 
 def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
@@ -118,11 +118,13 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     # print(f'[DEBUG] rows = {rows}')
     return rows
 
+
 def __get_all_pieces_count() -> int:
     sql = 'select COUNT(*) from pieces'
     row = execute_sql_query_one(pooldb, sql)
     count = int(row['COUNT(*)'])
     return count
+
 
 @bp.route('/getPiecesBrief', methods=['GET'])
 def get_bref():
@@ -156,7 +158,6 @@ def get_bref():
             if queryTimes is None:
                 # 按照随机方式推荐
                 rows = __random_get_pieces_brief_sql(15)
-            
 
         # 查找最热门的标签
         for i in range(len(rows)):
@@ -206,6 +207,7 @@ def get_bref():
                     # print(f'[DEBUG] enter collect')
                     # 在用户喜欢的列表里
                     rows[i]["isCollected"] = 1
+
         except NetworkException:
             print("用户未登录或不存在，不返回点赞收藏信息")
         except Exception as e:
@@ -354,7 +356,7 @@ def get_pieces_detail():
         if 'piecesId' not in data:
             raise NetworkException(400, '传入数据错误，未包含piecesId')
 
-        pieceId = data['piecesId']
+        pieceId = int(data['piecesId'])
         piece = __get_pieces_by_id_aux(pieceId, request)
         if piece is None:
             raise NetworkException(404, '该章节不存在')
@@ -366,6 +368,13 @@ def get_pieces_detail():
             seriesList = __query_series_brief_sql({"seriesId": piece['seriesId']})
             if seriesList is not None and len(seriesList):
                 piece['series'] = seriesList[0]
+        try:
+            user = check_user_before_request(request)
+        except Exception as e:
+            user = None
+
+        pieces_comments = __pieces_get_comments_detail_one_depth_reply(pieceId, user)
+        piece['comments'] = pieces_comments
 
         return build_success_response(piece)
 
@@ -645,6 +654,7 @@ def __check_if_pieces_is_belong_to_user(piecesId, userId) -> bool:
         return True
     return False
 
+
 @bp.route('/delPieces', methods=['GET'])
 def del_pieces():
     """
@@ -653,8 +663,8 @@ def del_pieces():
     try:
         piecesId = request.args.get('piecesId')
         if piecesId is None:
-            raise(400, "前端缺少重要参数piecesId")
-        
+            raise (400, "前端缺少重要参数piecesId")
+
         user = check_user_before_request(request, roles='common')
 
         if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
@@ -666,12 +676,13 @@ def del_pieces():
             __del_pieces_sql(piecesId)
 
         return build_success_response()
-    
+
     except NetworkException as e:
-            return build_error_response(code=e.code, msg=e.msg)
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
+
 
 def __change_pieces_status(piecesId, trans=None):
     sql = 'select status from pieces where piecesId = %s'
@@ -691,6 +702,7 @@ def __change_pieces_status(piecesId, trans=None):
     else:
         return trans.execute(sql, (status, piecesId))
 
+
 @bp.route('/changePiecesStatus', methods=['GET'])
 def change_pieces_status():
     """
@@ -699,8 +711,8 @@ def change_pieces_status():
     try:
         piecesId = request.args.get('piecesId')
         if piecesId is None:
-            raise(400, "前端缺少重要参数piecesId")
-        
+            raise (400, "前端缺少重要参数piecesId")
+
         user = check_user_before_request(request, roles='common')
 
         if __check_if_pieces_is_belong_to_user(piecesId, user['id']):
@@ -710,14 +722,15 @@ def change_pieces_status():
             # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
             check_user_before_request(request, roles='manager')
             __change_pieces_status(piecesId)
-        
+
         return build_success_response()
-    
+
     except NetworkException as e:
-            return build_error_response(code=e.code, msg=e.msg)
+        return build_error_response(code=e.code, msg=e.msg)
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
+
 
 def __check_if_all_series_are_belong_to_user(seriesIdList: list, userId: str) -> bool:
     try:
@@ -780,12 +793,14 @@ def del_series():
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
 
+
 def __update_pieces_sql(piecesId, content, trans=None):
     sql = 'update pieces set content = %s where piecesId = %s'
     if trans is None:
         return execute_sql_write(pooldb, sql, (content, piecesId))
     else:
         return trans.execute(sql, (content, piecesId))
+
 
 @bp.route('/updatePieces', methods=['POST'])
 def update_pieces():
@@ -808,7 +823,6 @@ def update_pieces():
             check_user_before_request(request, roles='manager')
             __update_pieces_sql(piecesId, content)
 
-
         return build_success_response()
 
     except NetworkException as e:
@@ -816,6 +830,7 @@ def update_pieces():
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
+
 
 def __update_series_sql(data: dict):
     try:
@@ -1402,12 +1417,172 @@ def get_pieces_collect():
     except Exception as e:
         check.printException(e)
         return build_error_response(code=500, msg='服务器内部错误')
-    
 
-from readio.mainpage.appBookDetailsPage import get_comment_sql, get_comment_replies_sql, get_sub_comment_ids_stack, get_comment_tree_recursive, get_sub_comments_stack
+
+def __pieces_comment_add_sql(piecesId: int, userId: int, content: str, trans: SqlTransaction) -> int:
+    # 修改 comments 表
+    add_c_sql = 'insert into comments(userId, content) values(%s,%s)'
+    comment_id = trans.execute(add_c_sql, (userId, content))
+
+    # 修改 comment_pieces表
+    add_cp_sql = 'insert into comment_pieces(commentId, piecesId) values(%s, %s)'
+    trans.execute(add_cp_sql, (comment_id, piecesId))
+    return comment_id
+
+
+def __pieces_reply_comment_sql(uid: int, parent_cid: int, content: str, trans: SqlTransaction):
+    # 修改 comments 表
+    add_c_sql = 'insert into comments(userId, content,likes) values(%s,%s,%s)'
+    args = uid, content, 0  # tuple
+    comment_id = trans.execute( add_c_sql, args)
+
+    # 修改 comment_replies 表
+    add_cb_sql = 'insert into comment_replies(parentId, commentId) values(%s,%s)'
+    args = parent_cid, comment_id
+    trans.execute(add_cb_sql, args)
+    return comment_id
+
+
+def __pieces_update_comment_sql(uid: int, cid: int, trans: SqlTransaction, content=None, like=None):
+    """
+    更新一条评论记录，包括内容和点赞数
+    注意： 数据库 comment_likes 表中设置了触发器更新 comments，所以点赞或取消只需要更新 comment_likes
+    """
+    if content is not None:
+        # 修改 comments 表
+        update_c_sql = "UPDATE comments SET content=%s WHERE commentId=%s"
+        c_args = content, cid
+        trans.execute(pooldb, update_c_sql, c_args)
+
+    if like is not None:
+        # 修改 comment_likes 表
+        if like == 1:
+            # 跳过重复点赞
+            if check_comment_liked(pooldb, uid, cid):
+                return
+            update_cl_sql = 'INSERT INTO comment_likes(userId, commentId) VALUES(%s,%s)'
+            cl_args = uid, cid
+            trans.execute(pooldb, update_cl_sql, cl_args)
+        elif like == 0:
+            del_cl_sql = "DELETE FROM comment_likes WHERE userId=%s AND commentId=%s"
+            d_cl_args = uid, cid
+            trans.execute(pooldb, del_cl_sql, d_cl_args)
+        else:
+            raise NetworkException(400, 'Invalid like (must be 0 or 1)')
+
+
+def __pieces_del_comments_sql(uid: int, cid: int, trans: SqlTransaction) -> int:
+    """
+    删除一条评论记录和与之相关的 comment_book 记录。
+    注意： 数据库 comment_book 表中设置了级联删除，仅需删除 comments 表中数据即可
+
+    :param uid: 用户 ID。
+    :param cid: 评论 ID。
+    :param trans: SqlTransaction
+    :return: None
+    :raises NetworkException: 当执行 SQL 发生错误时，抛出此异常。
+    """
+    # 删除 comment
+    del_c_sql = "DELETE FROM comments WHERE userId=%s AND commentId=%s"
+    c_args = (uid, cid)
+    if trans is None:
+        return execute_sql_write(pooldb, del_c_sql, c_args)
+    else:
+        return trans.execute(pooldb, del_c_sql, c_args)
+
+
+def __pieces_del_replies_sql(uid: int, cid: int, trans: SqlTransaction):
+    """
+    删除一条回复记录和与之相关的 comment_replies 记录。
+    注意： 数据库 comment_replies 表中设置了级联删除，仅需删除 comments 表中数据即可
+
+    :param uid: 用户 ID。
+    :param cid: 评论 ID。
+    :param trans: SqlTransaction
+    :return: None
+    :raises NetworkException: 当执行 SQL 发生错误时，抛出此异常。
+    """
+    # 获取所有子评论的 id
+    ids = get_sub_comment_ids_stack(cid)
+    # 加上该评论
+    ids.append(cid)
+
+    # 删除 comment
+    for cid in ids:
+        del_c_sql = "DELETE FROM comments WHERE userId=%s AND commentId=%s"
+        c_args = (uid, cid)
+        if trans is None:
+            execute_sql_write(pooldb, del_c_sql, c_args)
+        else:
+            trans.execute(pooldb, del_c_sql, c_args)
+
+
+def __get_comments_id_by_pieces_id(piecesId: int) -> List[int]:
+    sql = 'select commentId from comment_pieces where piecesId=%s'
+    rows = execute_sql_query(pooldb, sql, piecesId)
+    ids = list(map(lambda x: int(x['commentId']), rows))
+    return ids
+
+
+def __check_if_comment_is_belongto_user(commentId: int, userId: int) -> bool:
+    sql = 'select * from comments where commentId = %s and userId = %s '
+    row = execute_sql_query_one(pooldb, sql, (commentId, userId))
+    if row is None:
+        return False
+    return True
+
+
+def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> List[Dict]:
+    """
+    获取pieces的所有评论详情，评论只有一层，包含回复
+    """
+    comments_ids = __get_comments_id_by_pieces_id(piecesId)
+    comments_objs = []
+    for comment_id in comments_ids:
+        res = get_comment_details(comment_id, None, user)
+        parent_user = get_user_by_id(res['userId'])
+        tmp_comment_obj = {
+            'commentId': res['commentId'],
+            'content': res['content'],
+            'user': parent_user,
+            'toUser': None,
+            'createTime': res['createTime'],
+            'likes': res['likes']
+        }
+
+        if user is not None and int(user['id']) == int(res['userId']):
+            tmp_comment_obj['isYours'] = True
+        else:
+            tmp_comment_obj['isYours'] = False
+
+        comments_objs.append(tmp_comment_obj)
+
+        sub_comments = res['comments']
+
+        for comment_obj in sub_comments:
+            tmp_sub_comments_obj = {
+                'commentId': comment_obj['commentId'],
+                'content': comment_obj['content'],
+                'user': get_user_by_id(comment_obj['userId']),
+                'toUser': parent_user,
+                'createTime': comment_obj['createTime'],
+                'likes': comment_obj['likes']
+            }
+            if user is not None and int(user['id']) == int(comment_obj['userId']):
+                tmp_sub_comments_obj['isYours'] = True
+            else:
+                tmp_sub_comments_obj['isYours'] = False
+
+            comments_objs.append(tmp_sub_comments_obj)
+    
+    # 根据createTime逆序排序
+    comments_objs.sort(key=lambda x: x['createTime'], reverse=True)
+
+    return comments_objs
+
 
 @bp.route('/pieces/comments/add', methods=['POST'])
-def add_pieces_comments_add():
+def add_pieces_comments():
     """
     为pieces添加评价
     """
@@ -1418,15 +1593,115 @@ def add_pieces_comments_add():
             raise NetworkException(400, '前端参数错误，未传入piecesId')
         if content is None:
             raise NetworkException(400, '请填写评论内容')
-        
+
         user = check_user_before_request(request)
         userId = user['id']
 
-        comment_id = add_comments_sql()
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        __pieces_comment_add_sql(piecesId, userId, content, trans)
+        trans.commit()
 
-        
+        return build_success_response()
 
-        return build_success_response(data=rows, length=len(rows))
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+@bp.route('/pieces/comments/reply', methods=['POST'])
+def add_pieces_comments_reply():
+    """
+    为pieces添加评价
+    """
+    try:
+        commentId = request.json.get("commentId")
+        content = request.json.get("content")
+        if commentId is None:
+            raise NetworkException(400, '前端参数错误，未传入commentId')
+        if content is None:
+            raise NetworkException(400, '请填写评论内容')
+
+        user = check_user_before_request(request)
+        userId = user['id']
+
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        __pieces_reply_comment_sql(userId, commentId, content, trans)
+        trans.commit()
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+@bp.route('/pieces/comments/update', methods=['POST'])
+def update_pieces_comments():
+    """
+    修改评论
+    """
+    try:
+        commentId = request.json.get("commentId")
+        content = request.json.get("content")
+        if commentId is None:
+            raise NetworkException(400, '前端参数错误，未传入commentId')
+        if content is None:
+            raise NetworkException(400, '请填写评论内容')
+
+        user = check_user_before_request(request, roles='common')
+
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        if __check_if_comment_is_belongto_user(commentId, user['id']):
+            # 如果这个comment属于发出请求的用户，则可以操作
+            __pieces_update_comment_sql(user['id'], commentId, trans, content)
+        else:
+            # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
+            check_user_before_request(request, roles='manager')
+            __pieces_update_comment_sql(user['id'], commentId, trans, content)
+
+        trans.commit()
+
+        return build_success_response()
+
+    except NetworkException as e:
+        return build_error_response(code=e.code, msg=e.msg)
+
+    except Exception as e:
+        check.printException(e)
+        return build_error_response(code=500, msg='服务器内部错误')
+
+
+@bp.route('/pieces/comments/del', methods=['GET'])
+def del_pieces_comments():
+    """
+    删除Pieces的评论
+    """
+    try:
+        commentId = request.args.get("commentId")
+        if commentId is None:
+            raise NetworkException(400, '前端参数错误，未传入commentId')
+
+        user = check_user_before_request(request, roles='common')
+
+        trans = SqlTransaction(pooldb)
+        trans.begin()
+        if __check_if_comment_is_belongto_user(commentId, user['id']):
+            # 如果这个comment属于发出请求的用户，则可以操作
+            __pieces_del_comments_sql(user['id'], commentId, trans)
+        else:
+            # 如果这个seires不属于发出请求的用户，则需要验证管理员身份
+            check_user_before_request(request, roles='manager')
+            __pieces_del_comments_sql(user['id'], commentId, trans)
+        trans.commit()
+
+        return build_success_response()
 
     except NetworkException as e:
         return build_error_response(code=e.code, msg=e.msg)
