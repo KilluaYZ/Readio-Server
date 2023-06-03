@@ -49,8 +49,8 @@ def get_reading_progress(uid, bid):
 def get_file_content(path):
     file = FileChangeSys(path)
     text = file.decode()  # [dict()]
-    return simplify(text)
-    # return text
+    # return simplify(text)
+    return text
 
 
 def get_book_content(bid, user=None):
