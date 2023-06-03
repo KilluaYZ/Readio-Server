@@ -14,8 +14,9 @@ from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
 from readio.utils.check import check_book_added
 from readio.utils.myExceptions import NetworkException
-from readio.utils.executeSQL import execute_sql_write, execute_sql_query
+from readio.utils.executeSQL import execute_sql_write, execute_sql_query_one
 from readio.utils.filechange import FileChangeSys
+from readio.mainpage.appBookShelfPage import get_books
 from readio.mainpage.appBookDetailsPage import get_book_info_sql
 from readio.manage.fileManage import getFilePathById
 
@@ -32,6 +33,16 @@ def simplify(text: list):
             continue
         t['Text'] = t['Text'][:limit] + '...'
     return text
+
+
+def get_reading_progress(uid, bid):
+    """ 获取用户书籍阅读进度 """
+    get_sql = "SELECT progress " \
+              "FROM user_read_info AS info " \
+              "WHERE userId=%s AND bookId=%s"
+    args = uid, bid
+    progress = execute_sql_query_one(pooldb, get_sql, args)['progress']
+    return progress
 
 
 # 根据文件路径获取内容
@@ -53,6 +64,7 @@ def get_book_content(bid, user=None):
     data['bookName'] = book_info['bookName']
     data['authorName'] = book_info['authorName']
     data['abstract'] = book_info['abstract']
+    data['progress'] = get_reading_progress(user['id'], bid) if user is not None else None
     data['size'] = len(content)
     data['content'] = content
     return data
