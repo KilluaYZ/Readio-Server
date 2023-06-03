@@ -204,7 +204,6 @@ def search():
             # user = check_user_before_request(request, raise_exc=False)
             book_name = request.args.get('bookName', None)
             author_name = request.args.get('authorName', None)
-            print(f'book_name = {book_name} author_name = {author_name}')
             results = search_books(book_name, author_name)
             data = {
                 "size": len(results),
