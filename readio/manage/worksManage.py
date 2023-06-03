@@ -77,9 +77,9 @@ def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
             pooldb.close_conn(conn, cursor)
 
 
-def __query_pieces_sql(query_param: dict) -> List[Dict]:
-    sql_select = 'select pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
-                 'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
+def __query_pieces_sql(query_param: dict, link='and') -> List[Dict]:
+    sql_select = 'select DISTINCT pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
+                 'pieces.title as title, pieces.userId as userId, substring(pieces.content,0,50) as content, ' \
                  'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
                  'pieces.status as status, pieces.likes as likes, pieces.views as views, ' \
                  'pieces.shares as shares, pieces.collect as collect from pieces '
@@ -88,36 +88,46 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
     args_val_list = []
 
     if 'piecesId' in query_param:
-        args_str_list.append(' and piecesId = %s ')
+        args_str_list.append(f' {link} piecesId = %s ')
         args_val_list.append(query_param['piecesId'])
     if 'title' in query_param:
-        args_str_list.append(' and title like %s ')
+        args_str_list.append(f' {link} title like %s ')
         args_val_list.append(f'%{query_param["title"]}%')
     if 'content' in query_param:
-        args_str_list.append(' and content like %s ')
+        args_str_list.append(f' {link} content like %s ')
         args_val_list.append(f'%{query_param["content"]}%')
     if 'userId' in query_param or 'userName' in query_param:
         sql_select += " , users "
-        args_str_list.append(' and users.id = pieces.userId ')
+        args_str_list.append(f' {link} users.id = pieces.userId ')
         if 'userName' in query_param:
-            args_str_list.append(' and users.userName like %s ')
+            args_str_list.append(f' {link} users.userName like %s ')
             args_val_list.append(f'%{query_param["userName"]}%')
         if 'userId' in query_param:
-            args_str_list.append(' and users.id = %s ')
+            args_str_list.append(f' {link} users.id = %s ')
             args_val_list.append(f'{query_param["userId"]}')
 
     sql = sql_select
     if len(args_str_list):
-        sql += ' where 1=1 '
+        if link == 'add':
+            sql += ' where 1=1 '
+        else:
+            sql += ' where 1!=1 '
+
     for item in args_str_list:
         sql += item
     # print(f'[DEBUG] sql = {sql}')
     # print(f'[DEBUG] userId = {query_param["userId"]}')
     # print(f'[DEBUG] args_val_list = {args_val_list}')
+    print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, tuple(args_val_list))
     # print(f'[DEBUG] rows = {rows}')
     return rows
 
+
+def __search_pieces_sql(keyword: str):
+    sql = 'select distinct * from pieces, users where pieces.userId = users.id and content like %s and users.userName like %s'
+    rows = execute_sql_query(pooldb, sql, (f"%{keyword}%", f"%{keyword}%"))
+    return rows
 
 def __get_all_pieces_count() -> int:
     sql = 'select COUNT(*) from pieces'
@@ -158,6 +168,13 @@ def get_bref():
             if queryTimes is None:
                 # 按照随机方式推荐
                 rows = __random_get_pieces_brief_sql(15)
+        elif mode == 'search':
+            """
+            启用搜索方式，用或运算查询所有符合的项
+            """
+            print(f'[DEBUG] 进入search分支')
+            keyword = request.args.get('keyword')
+            rows = __search_pieces_sql(keyword)
 
         # 查找最热门的标签
         for i in range(len(rows)):
@@ -1574,7 +1591,7 @@ def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> Li
                 tmp_sub_comments_obj['isYours'] = False
 
             comments_objs.append(tmp_sub_comments_obj)
-    
+
     # 根据createTime逆序排序
     comments_objs.sort(key=lambda x: x['createTime'], reverse=True)
 
