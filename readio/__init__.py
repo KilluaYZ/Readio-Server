@@ -79,9 +79,9 @@ def app_test(app):
         """ test bookshelf """
         # app_test_bookshelf(client)
         """ test book details"""
-        app_test_book_details(client)
+        # app_test_book_details(client)
         """ test book reading """
-        # app_test_book_reading(client)
+        app_test_book_reading(client)
 
 
 def app_test_book_reading(client, login_data: Dict = None, headers=None):
@@ -99,7 +99,7 @@ def app_test_book_reading(client, login_data: Dict = None, headers=None):
     resp_dict = {}
     """ ------------- book reading ------------- """
     # 1->epub 2/3->txt 4->mobi 14->pdf
-    url_and_params = get_url('book_reading.index', book_id=14)
+    url_and_params = get_url('book_reading.index', book_id=3)
     client_test(client, url_and_params, 'GET', headers=headers)
 
 
@@ -114,8 +114,8 @@ def app_test_book_details(client, login_data: Dict = None, headers=None):
         # login to get token
         resp_dict = client_test(client, get_url('auth.login'), 'POST', headers, login_data, print_info=False)
         token = resp_dict['data']['token']
-        # headers['Authorization'] = token
-        headers['Authorization'] = '5cf397accdcf195bfe983af257fdbbf14e1fc83d'
+        headers['Authorization'] = token
+        # headers['Authorization'] = '5cf397accdcf195bfe983af257fdbbf14e1fc83d'
         headers['depth'] = 3
     resp_dict = {}
     """ ------------- book details ------------- """
