@@ -77,11 +77,11 @@ def app_test(app):
         """ test auth """
         # app_test_auth(client)
         """ test bookshelf """
-        # app_test_bookshelf(client)
+        app_test_bookshelf(client)
         """ test book details"""
         # app_test_book_details(client)
         """ test book reading """
-        app_test_book_reading(client)
+        # app_test_book_reading(client)
 
 
 def app_test_book_reading(client, login_data: Dict = None, headers=None):
@@ -186,19 +186,24 @@ def app_test_bookshelf(client, login_data: Dict = None, headers=None):
         read_info['userId'] = uid
     # list
     client_test(client, get_url('bookshelf.index'), 'GET', headers=headers)
-    read_info['bookId'] = 6
-    read_info['progress'] = 3
-    """ ------------- search books ------------- """
-    url_and_params = get_url('bookshelf.search')
-    headers['bookName'] = '资本论'
-    headers['authorName'] = '克'
-    # client_test(client, url_and_params, 'GET', headers=headers)
+    # read_try
+    client_test(client, get_url('bookshelf.read_try'), 'GET', headers=headers)
+    read_info['bookId'] = 1
+    read_info['progress'] = 6
+    # client_test(client, get_url('bookshelf.read_try'), 'POST', headers=headers, json_data=read_info)
     # add
+    # read_info['bookId'] = 7
+    # read_info['added'] = 1
     # client_test(client, get_url('bookshelf.add'), 'POST', headers=headers, json_data=read_info)
     # update
     # client_test(client, get_url('bookshelf.update'), 'POST', headers=headers, json_data=read_info)
     # del
     # client_test(client, get_url('bookshelf.delete'), 'POST', headers=headers, json_data=read_info)
+    """ ------------- search books ------------- """
+    url_and_params = get_url('bookshelf.search')
+    headers['bookName'] = '资本论'
+    headers['authorName'] = '克'
+    # client_test(client, url_and_params, 'GET', headers=headers)
 
 
 def extract_number(text: str, n: int = 1) -> Optional[int]:

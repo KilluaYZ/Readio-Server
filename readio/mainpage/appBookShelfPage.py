@@ -20,17 +20,18 @@ bp = Blueprint('bookshelf', __name__, url_prefix='/app/books')
 pooldb = readio.database.connectPool.pooldb
 
 
-def get_books(user_id: int) -> List[Dict[str, str]]:
+def get_books(user_id: int, added: int = 1) -> List[Dict[str, str]]:
     """
     获取某个用户已经阅读过的书籍信息列表
     :param user_id: 用户ID
+    :param added: 是否为书架里的书（1为书架上的，0为阅读过的）
     :return: 包含书籍信息的字典列表，每个字典中包括了书籍的ID、名称、作者等信息
     """
     # SQL查询，获取用户已经阅读过的所有书籍信息
     get_sql = "SELECT info.* , books.* " \
               "FROM user_read_info AS info, books " \
-              "WHERE userId=%s AND info.bookId=books.id"
-    args = user_id
+              "WHERE userId=%s AND info.bookId=books.id AND info.added>=%s"
+    args = user_id, int(added)
     books = execute_sql_query(pooldb, get_sql, args)
     return books
 
@@ -65,10 +66,10 @@ def search_books(book_name: Optional[str] = None, author_name: Optional[str] = N
     return results
 
 
-def add_book_sql(uid, bid, progress):
-    """将用户书本阅读信息写入数据库"""
-    add_sql = 'insert into user_read_info(userId, bookId, progress) values(%s,%s,%s)'
-    args = uid, bid, progress  # tuple
+def add_book_sql(uid, bid, progress, added=1):
+    """将用户书本阅读信息写入数据库，默认加入书架"""
+    add_sql = 'insert into user_read_info(userId, bookId, progress,added) values(%s,%s,%s,%s)'
+    args = uid, bid, progress, int(added)  # tuple
     execute_sql_write(pooldb, add_sql, args)
 
 
@@ -93,6 +94,7 @@ def add():
             user = check_user_before_request(request)
             uid, bid = user['id'], request.json.get('bookId')
             progress = request.json.get('progress', 0)
+            added = 1
 
             # uid bid 其中一个为空
             if not all([uid, bid]):
@@ -102,8 +104,56 @@ def add():
                 raise Exception('该书已加入书架，无需重复加入')
             else:
                 # 将书本信息写入数据库
-                add_book_sql(uid, bid, progress)
+                add_book_sql(uid, bid, progress, added)
             response = build_redirect_response(f'添加书{bid}，重定向至书架页', url_for('bookshelf.index'))
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+
+
+@bp.route('/read_try', methods=['GET', 'POST'])
+def read_try():
+    """
+    尝试阅读，不加入书架。
+    GET 获取读过的书籍信息，包括书架上的
+    POST 将阅读的信息写入数据库，但不加入书架。
+    注意：更新阅读进度使用 update
+    """
+    if request.method == 'POST':
+        try:
+            user = check_user_before_request(request)
+            uid, bid = user['id'], request.json.get('bookId')
+            progress = request.json.get('progress', 0)
+            added = 0
+
+            # uid bid 其中一个为空
+            if not all([uid, bid]):
+                raise Exception('userId 或 bookId 缺失')
+
+            # 将书本阅读信息写入数据库
+            add_book_sql(uid, bid, progress, added)
+            response = build_success_response(f'开始阅读书{bid}')
+        except NetworkException as e:
+            response = build_error_response(code=e.code, msg=e.msg)
+        except Exception as e:
+            print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
+            print(e)
+            response = build_error_response(msg=str(e))
+        return response
+    elif request.method == 'GET':
+        try:
+            user = check_user_before_request(request)
+            books = get_books(user['id'], added=0)
+            # print(type(books[0]), books[0]) if len(books) > 0 else print('get 0 books from user:', books)
+            data = {
+                "size": len(books),
+                "data": books
+            }
+            response = build_success_response(data)
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
         except Exception as e:

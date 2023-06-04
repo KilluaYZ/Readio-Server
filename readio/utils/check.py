@@ -78,7 +78,7 @@ def checkRequstIsNotNone(req: dict, keyName: str):
 def check_book_added(pooldb, uid, bid):
     """ 判断用户 uid 的书架是否有书籍 bid """
     try:
-        check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s"
+        check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s AND added=1"
         args = uid, bid
         book_count = execute_sql_query_one(pooldb, check_book_sql, args)
         # book_count = {'COUNT(*)': 1}
