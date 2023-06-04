@@ -9,6 +9,7 @@ def printException(e):
     print(f"[ERROR]{__file__}::{inspect.getframeinfo(inspect.currentframe().f_back)[2]} \n {e}")
     # print(f"[ERROR] {e.with_traceback()}")
 
+
 def is_number(s):
     try:
         float(s)
@@ -75,11 +76,11 @@ def checkRequstIsNotNone(req: dict, keyName: str):
 
 # 检查用户 uid 的书架上是否有书 bid
 # 注意：这里未检查用户是否有凭证，可以配合使用 check_user_before_request
-def check_book_added(pooldb, uid, bid):
+def check_book_added(pooldb, uid, bid, added=1):
     """ 判断用户 uid 的书架是否有书籍 bid """
     try:
-        check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s AND added=1"
-        args = uid, bid
+        check_book_sql = "SELECT COUNT(*) FROM user_read_info WHERE userId=%s AND bookId=%s AND added>=%s"
+        args = uid, bid, int(added)
         book_count = execute_sql_query_one(pooldb, check_book_sql, args)
         # book_count = {'COUNT(*)': 1}
         return book_count['COUNT(*)'] > 0
@@ -88,6 +89,11 @@ def check_book_added(pooldb, uid, bid):
         print(e)
         # raise
         raise Exception("Error occurred while checking book added: " + str(e))
+
+
+def check_book_read(pooldb, uid, bid):
+    """ 判断用户 uid 的是否读过书籍 bid """
+    check_book_added(pooldb, uid, bid, added=0)
 
 
 def check_book_liked(pooldb, uid, bid):

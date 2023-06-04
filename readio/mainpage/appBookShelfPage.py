@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 
 from readio.utils.buildResponse import *
 from readio.utils.auth import check_user_before_request
-from readio.utils.check import check_book_added
+from readio.utils.check import check_book_added, check_book_read
 import readio.database.connectPool
 from readio.utils.myExceptions import NetworkException
 from readio.utils.executeSQL import execute_sql_write, execute_sql_query
@@ -134,8 +134,11 @@ def read_try():
             if not all([uid, bid]):
                 raise Exception('userId 或 bookId 缺失')
 
-            # 将书本阅读信息写入数据库
-            add_book_sql(uid, bid, progress, added)
+            if check_book_read(pooldb, uid, bid):
+                raise Exception('该书已经读过，请勿重复增加阅读信息')
+            else:
+                # 将书本阅读信息写入数据库
+                add_book_sql(uid, bid, progress, added)
             response = build_success_response(f'开始阅读书{bid}')
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
