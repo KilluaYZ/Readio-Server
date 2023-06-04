@@ -120,7 +120,8 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
 
 
 def __search_pieces_sql(keyword: str):
-    sql = 'select distinct * from pieces, users where pieces.userId = users.id and (content like %s or users.userName like %s)'
+    sql = 'select distinct * from pieces, users where pieces.userId = users.id and (pieces.title like %s or users.userName like %s)'
+    print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, (f"%{keyword}%", f"%{keyword}%"))
     return rows
 
