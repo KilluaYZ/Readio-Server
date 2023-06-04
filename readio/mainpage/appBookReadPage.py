@@ -41,15 +41,17 @@ def get_reading_progress(uid, bid):
               "FROM user_read_info AS info " \
               "WHERE userId=%s AND bookId=%s"
     args = uid, bid
-    progress = execute_sql_query_one(pooldb, get_sql, args)['progress']
+    result = execute_sql_query_one(pooldb, get_sql, args)
+    progress = result['progress'] if result is not None else None
     return progress
 
 
 # 根据文件路径获取内容
 def get_file_content(path):
     file = FileChangeSys(path)
-    text = file.decode()  # [dict()]
-    # return simplify(text)
+    text = file.decode(print_info=False)  # [dict()]
+    text = simplify(text)  # 简化内容，便于调试
+    # print("get_file_content: len of text", len(text))
     return text
 
 
@@ -58,7 +60,9 @@ def get_book_content(bid, user=None):
     book_info = get_book_info_sql(bid)
     book_hash = book_info['sha256']
     book_path = getFilePathById(book_hash)  # 根据 hash 获取文件路径
+    # print("get_book_content:  getFilePathById done")
     content = get_file_content(book_path)  # 根据文件路径获取内容
+    # print('get_book_content: get_file_content done')
     # 构建返回的数据
     data['id'] = book_info['id']
     data['bookName'] = book_info['bookName']
@@ -84,5 +88,5 @@ def index(book_id):
         except Exception as e:
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
-            response = build_error_response(msg='服务器内部错误：'+str(e),code=500)
+            response = build_error_response(msg='服务器内部错误：' + str(e), code=500)
         return response
