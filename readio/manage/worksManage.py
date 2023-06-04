@@ -152,7 +152,10 @@ def get_bref():
     """
     try:
         mode = request.args.get('mode')
-        if mode is None or mode == 'random':
+        if mode is None:
+            mode = 'recommend'
+            
+        if mode == 'random': 
             size = request.args.get('size')
             if size is None:
                 size = 15
