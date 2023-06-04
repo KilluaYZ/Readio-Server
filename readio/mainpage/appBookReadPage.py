@@ -50,7 +50,7 @@ def get_reading_progress(uid, bid):
 def get_file_content(path):
     file = FileChangeSys(path)
     text = file.decode(print_info=False)  # [dict()]
-    text = simplify(text)  # 简化内容，便于调试
+    # text = simplify(text)  # 简化内容，便于调试
     # print("get_file_content: len of text", len(text))
     return text
 
