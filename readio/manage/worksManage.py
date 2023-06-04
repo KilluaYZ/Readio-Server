@@ -77,7 +77,7 @@ def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
             pooldb.close_conn(conn, cursor)
 
 
-def __query_pieces_sql(query_param: dict, link='and') -> List[Dict]:
+def __query_pieces_sql(query_param: dict) -> List[Dict]:
     sql_select = 'select DISTINCT pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
                  'pieces.title as title, pieces.userId as userId, substring(pieces.content,0,50) as content, ' \
                  'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
@@ -88,44 +88,39 @@ def __query_pieces_sql(query_param: dict, link='and') -> List[Dict]:
     args_val_list = []
 
     if 'piecesId' in query_param:
-        args_str_list.append(f' {link} piecesId = %s ')
+        args_str_list.append(f' and piecesId = %s ')
         args_val_list.append(query_param['piecesId'])
     if 'title' in query_param:
-        args_str_list.append(f' {link} title like %s ')
+        args_str_list.append(f' and title like %s ')
         args_val_list.append(f'%{query_param["title"]}%')
     if 'content' in query_param:
-        args_str_list.append(f' {link} content like %s ')
+        args_str_list.append(f' and content like %s ')
         args_val_list.append(f'%{query_param["content"]}%')
     if 'userId' in query_param or 'userName' in query_param:
         sql_select += " , users "
-        args_str_list.append(f' {link} users.id = pieces.userId ')
+        args_str_list.append(f' and users.id = pieces.userId ')
         if 'userName' in query_param:
-            args_str_list.append(f' {link} users.userName like %s ')
+            args_str_list.append(f' and users.userName like %s ')
             args_val_list.append(f'%{query_param["userName"]}%')
         if 'userId' in query_param:
-            args_str_list.append(f' {link} users.id = %s ')
+            args_str_list.append(f' and users.id = %s ')
             args_val_list.append(f'{query_param["userId"]}')
 
     sql = sql_select
     if len(args_str_list):
-        if link == 'add':
-            sql += ' where 1=1 '
-        else:
-            sql += ' where 1!=1 '
-
+        sql += ' where 1=1 '
+        
     for item in args_str_list:
         sql += item
+
     # print(f'[DEBUG] sql = {sql}')
-    # print(f'[DEBUG] userId = {query_param["userId"]}')
-    # print(f'[DEBUG] args_val_list = {args_val_list}')
-    print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, tuple(args_val_list))
     # print(f'[DEBUG] rows = {rows}')
     return rows
 
 
 def __search_pieces_sql(keyword: str):
-    sql = 'select distinct * from pieces, users where pieces.userId = users.id and content like %s and users.userName like %s'
+    sql = 'select distinct * from pieces, users where pieces.userId = users.id and (content like %s or users.userName like %s)'
     rows = execute_sql_query(pooldb, sql, (f"%{keyword}%", f"%{keyword}%"))
     return rows
 

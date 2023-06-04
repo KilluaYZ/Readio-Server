@@ -47,6 +47,7 @@ class FileChangeSys(object):
     def decode(self, print_info=None):
         # 解码文件
         self.decode_filetype()
+        print(f'[DEBUG] 1')
         if print_info:
             self.print_fileinfo()
         if self.Type == 'pdf':
@@ -59,6 +60,7 @@ class FileChangeSys(object):
             self.mobi_decode()
         else:
             print("不支持的文件类型")
+        print(f'[DEBUG] 2')
         return [c.to_dict() for c in self.Chapter_uniform]
 
     # 解码Path
@@ -145,7 +147,10 @@ class FileChangeSys(object):
 
     # epub转pdf
     def epub_decode(self):
+        print(f'[DEBUG] 1.1')
+        print(f'[DEBUG] self.Path = {self.Path}')
         book = epub.read_epub(self.Path)
+        print(f'[DEBUG] 1.2')
         index = 0
         for text in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
             index += 1
@@ -166,6 +171,7 @@ class FileChangeSys(object):
             self.Chapter_uniform.append(new_chapter)
             # print下信息
             # new_chapter.print_info()
+        print(f'[DEBUG] 1.3')
 
     # mobi转pdf
     def mobi_decode(self):
