@@ -40,6 +40,13 @@ def __random_get_pieces_brief_sql(size: int) -> list:
 
     return rows
 
+def __recommend_pieces_sql(idx: int,size: int) -> list:
+    sql = 'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces order by updateTime desc limit %s, %s '
+    print(f'[DEBUG] idx = {idx}, size = {size}')
+    offset = int(idx) * int(size)
+    rows = execute_sql_query(pooldb, sql, (offset, size))
+    return rows
+
 
 def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
     try:
@@ -126,7 +133,7 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
 
 
 def __search_pieces_sql(keyword: str):
-    sql = 'select distinct * from pieces, users where pieces.status = 1 and pieces.userId = users.id and (pieces.title like %s or users.userName like %s)'
+    sql = 'select distinct * from pieces, users where pieces.status = 1 and pieces.userId = users.id and (pieces.title like %s or users.userName like %s) order by pieces.updateTime desc '
     print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, (f"%{keyword}%", f"%{keyword}%"))
     return rows
@@ -145,7 +152,10 @@ def get_bref():
     """
     try:
         mode = request.args.get('mode')
-        if mode is None or mode == 'random':
+        if mode is None:
+            mode = 'recommend'
+            
+        if mode == 'random': 
             size = request.args.get('size')
             if size is None:
                 size = 15
@@ -170,6 +180,19 @@ def get_bref():
             if queryTimes is None:
                 # 按照随机方式推荐
                 rows = __random_get_pieces_brief_sql(15)
+            else:    
+                # 每次推送15个，其中三个随机
+                new_rows = __recommend_pieces_sql(queryTimes, 12)
+                if len(new_rows) <= 0:
+                    rand_rows = __random_get_pieces_brief_sql(15)
+                else:
+                    rand_rows = __random_get_pieces_brief_sql(3)
+                rows = []
+                for row in new_rows:
+                    rows.append(row)
+                for row in rand_rows:
+                    rows.append(row)
+            
         elif mode == 'search':
             """
             启用搜索方式，用或运算查询所有符合的项
