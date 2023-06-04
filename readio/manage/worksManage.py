@@ -112,6 +112,12 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
         
     for item in args_str_list:
         sql += item
+    
+    if 'sortMode' in query_param:
+        if query_param['sortMode'] == 'hot':
+            sql += ' order by pieces.likes desc '
+        elif query_param['sortMode'] == 'new':
+            sql += ' order by pieces.updateTime desc '    
 
     # print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, tuple(args_val_list))
@@ -120,7 +126,7 @@ def __query_pieces_sql(query_param: dict) -> List[Dict]:
 
 
 def __search_pieces_sql(keyword: str):
-    sql = 'select distinct * from pieces, users where pieces.userId = users.id and (pieces.title like %s or users.userName like %s)'
+    sql = 'select distinct * from pieces, users where pieces.status = 1 and pieces.userId = users.id and (pieces.title like %s or users.userName like %s)'
     print(f'[DEBUG] sql = {sql}')
     rows = execute_sql_query(pooldb, sql, (f"%{keyword}%", f"%{keyword}%"))
     return rows
@@ -434,7 +440,7 @@ def get_user_pieces_list():
     """
     try:
         user = check_user_before_request(request)
-        rows = __query_pieces_sql({"userId": user['id']})
+        rows = __query_pieces_sql({"userId": user['id'], "sortMode":"new"})
 
         for i in range(len(rows)):
             rows[i]['comment'] = 123
@@ -807,7 +813,7 @@ def del_series():
 
 
 def __update_pieces_sql(piecesId, content, trans=None):
-    sql = 'update pieces set content = %s where piecesId = %s'
+    sql = 'update pieces set content = %s, updateTime = now() where piecesId = %s'
     if trans is None:
         return execute_sql_write(pooldb, sql, (content, piecesId))
     else:

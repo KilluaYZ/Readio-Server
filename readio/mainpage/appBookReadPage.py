@@ -84,5 +84,5 @@ def index(book_id):
         except Exception as e:
             print("[ERROR]" + __file__ + "::" + inspect.getframeinfo(inspect.currentframe().f_back)[2])
             print(e)
-            response = build_error_response(msg=str(e))
+            response = build_error_response(msg='服务器内部错误：'+str(e),code=500)
         return response
