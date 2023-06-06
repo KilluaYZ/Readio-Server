@@ -86,7 +86,7 @@ def __get_tags_by_seriesId_sql(seriesId: int, mode='default') -> list:
 
 def __query_pieces_sql(query_param: dict) -> List[Dict]:
     sql_select = 'select DISTINCT pieces.piecesId as piecesId, pieces.seriesId as seriesId, ' \
-                 'pieces.title as title, pieces.userId as userId, substring(pieces.content,0,50) as content, ' \
+                 'pieces.title as title, pieces.userId as userId, pieces.content as content, ' \
                  'pieces.createTime as createTime, pieces.updateTime as updateTime, ' \
                  'pieces.status as status, pieces.likes as likes, pieces.views as views, ' \
                  'pieces.shares as shares, pieces.collect as collect from pieces '
@@ -466,7 +466,6 @@ def get_user_pieces_list():
         rows = __query_pieces_sql({"userId": user['id'], "sortMode":"new"})
 
         for i in range(len(rows)):
-            rows[i]['comment'] = 123
             seriesId = rows[i].get('seriesId')
             if seriesId is not None:
                 series = __query_series_brief_sql({"seriesId": seriesId})
