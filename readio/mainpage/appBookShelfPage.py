@@ -78,6 +78,13 @@ def read_book_sql(uid, bid, progress):
     add_book_sql(uid, bid, progress, added=0)
 
 
+def add_bookshelf_sql(uid, bid, progress):
+    """将已读书籍加入书架"""
+    add_sql = 'update user_read_info set progress=%s, added=1 where userId=%s and bookId=%s'
+    args = progress, uid, bid
+    execute_sql_write(pooldb, add_sql, args)
+
+
 def update_book_sql(uid, bid, progress):
     """ 更新用户书本阅读进度 """
     update_sql = 'update user_read_info set progress=%s where userId=%s and bookId=%s'
@@ -107,8 +114,11 @@ def add():
 
             if check_book_added(pooldb, uid, bid):
                 raise Exception('该书已加入书架，无需重复加入')
+            elif check_book_read(pooldb, uid, bid):
+                # 如果读过书，即表中有数据，放入书架即可
+                add_bookshelf_sql(uid, bid, progress)
             else:
-                # 将书本信息写入数据库
+                # 将书本信息写入数据库，并加入书架
                 add_book_sql(uid, bid, progress, added)
             response = build_redirect_response(f'添加书{bid}，重定向至书架页', url_for('bookshelf.index'))
         except NetworkException as e:
