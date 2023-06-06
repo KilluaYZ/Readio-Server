@@ -93,7 +93,7 @@ def check_book_added(pooldb, uid, bid, added=1):
 
 def check_book_read(pooldb, uid, bid):
     """ 判断用户 uid 的是否读过书籍 bid """
-    check_book_added(pooldb, uid, bid, added=0)
+    return check_book_added(pooldb, uid, bid, added=0)
 
 
 def check_book_liked(pooldb, uid, bid):
