@@ -466,6 +466,7 @@ def get_user_pieces_list():
         rows = __query_pieces_sql({"userId": user['id'], "sortMode":"new"})
 
         for i in range(len(rows)):
+            rows[i]['comment'] = 123
             seriesId = rows[i].get('seriesId')
             if seriesId is not None:
                 series = __query_series_brief_sql({"seriesId": seriesId})
