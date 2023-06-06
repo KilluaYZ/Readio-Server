@@ -73,6 +73,11 @@ def add_book_sql(uid, bid, progress, added=1):
     execute_sql_write(pooldb, add_sql, args)
 
 
+def read_book_sql(uid, bid, progress):
+    """将用户书本阅读信息写入数据库，不加入书架"""
+    add_book_sql(uid, bid, progress, added=0)
+
+
 def update_book_sql(uid, bid, progress):
     """ 更新用户书本阅读进度 """
     update_sql = 'update user_read_info set progress=%s where userId=%s and bookId=%s'
@@ -179,15 +184,14 @@ def update():
             if not all([uid, bid]):
                 raise Exception('userId 或 bookId 缺失')
 
-            # 书架上已有
-            if check_book_added(pooldb, uid, bid):
+            # 已读过
+            if check_book_read(pooldb, uid, bid):
                 update_book_sql(uid, bid, progress)
-                msg = f'书{bid}更新阅读进度，重定向至书架页'
+                msg = f'书{bid}更新阅读进度'
             else:
-                print('书架上没有这本书，已添加')
-                add_book_sql(uid, bid, progress)
-                msg = f'书架上没有书{bid}，现已添加，重定向至书架页'
-            response = build_redirect_response(msg, url_for('bookshelf.index'))
+                read_book_sql(uid, bid, progress)
+                msg = f'没有读过书{bid}，现已添加'
+            response = build_success_response(msg=msg)
         # check_user_before_request会抛出NetworkException，这是自定义的Exception，用于构造error_reponse
         except NetworkException as e:
             response = build_error_response(code=e.code, msg=e.msg)
