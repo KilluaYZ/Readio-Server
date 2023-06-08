@@ -1493,7 +1493,7 @@ def __pieces_update_comment_sql(uid: int, cid: int, trans=None, content=None, li
         # 修改 comments 表
         update_c_sql = "UPDATE comments SET content=%s WHERE commentId=%s"
         c_args = content, cid
-        trans.execute(pooldb, update_c_sql, c_args)
+        trans.execute(update_c_sql, c_args)
 
     if like is not None:
         # 修改 comment_likes 表
@@ -1503,11 +1503,11 @@ def __pieces_update_comment_sql(uid: int, cid: int, trans=None, content=None, li
                 return
             update_cl_sql = 'INSERT INTO comment_likes(userId, commentId) VALUES(%s,%s)'
             cl_args = uid, cid
-            trans.execute(pooldb, update_cl_sql, cl_args)
+            trans.execute(update_cl_sql, cl_args)
         elif like == 0:
             del_cl_sql = "DELETE FROM comment_likes WHERE userId=%s AND commentId=%s"
             d_cl_args = uid, cid
-            trans.execute(pooldb, del_cl_sql, d_cl_args)
+            trans.execute(del_cl_sql, d_cl_args)
         else:
             raise NetworkException(400, 'Invalid like (must be 0 or 1)')
 
@@ -1529,7 +1529,7 @@ def __pieces_del_comments_sql(uid: int, cid: int, trans=None) -> int:
     if trans is None:
         return execute_sql_write(pooldb, del_c_sql, c_args)
     else:
-        return trans.execute(pooldb, del_c_sql, c_args)
+        return trans.execute(del_c_sql, c_args)
 
 
 def __pieces_del_replies_sql(uid: int, cid: int, trans=None):
@@ -1555,7 +1555,7 @@ def __pieces_del_replies_sql(uid: int, cid: int, trans=None):
         if trans is None:
             execute_sql_write(pooldb, del_c_sql, c_args)
         else:
-            trans.execute(pooldb, del_c_sql, c_args)
+            trans.execute(del_c_sql, c_args)
 
 
 def __get_comments_id_by_pieces_id(piecesId: int) -> List[int]:
