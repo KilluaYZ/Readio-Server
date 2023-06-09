@@ -1572,6 +1572,12 @@ def __check_if_comment_is_belongto_user(commentId: int, userId: int) -> bool:
         return False
     return True
 
+def __get_comment_user_id_by_comment_id_sql(commentId:int) -> int:
+    sql = 'select userId from comments where commentId = %s'
+    row = execute_sql_query_one(pooldb, sql, (commentId))
+    if row is None:
+        return None
+    return int(row['userId'])
 
 def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> List[Dict]:
     """
@@ -1602,11 +1608,12 @@ def __pieces_get_comments_detail_one_depth_reply(piecesId: int, user=None) -> Li
         sub_comments = res['comments']
 
         for comment_obj in sub_comments:
+            reply_to_user = get_user_by_id(__get_comment_user_id_by_comment_id_sql(comment_obj['reply_to']))
             tmp_sub_comments_obj = {
                 'commentId': comment_obj['commentId'],
                 'content': comment_obj['content'],
                 'user': get_user_by_id(comment_obj['userId']),
-                'toUser': parent_user,
+                'toUser': reply_to_user,
                 'createTime': comment_obj['createTime'],
                 'likes': comment_obj['likes']
             }
@@ -1668,10 +1675,12 @@ def add_pieces_comments_reply():
             raise NetworkException(400, '前端参数错误，未传入commentId')
         if content is None:
             raise NetworkException(400, '请填写评论内容')
-
+        
+        
+        
         user = check_user_before_request(request)
         userId = user['id']
-
+        print(f'[DEBUG] commentId = {commentId}  content={content}  user = {user} ')
         trans = SqlTransaction(pooldb)
         trans.begin()
         __pieces_reply_comment_sql(userId, commentId, content, trans)

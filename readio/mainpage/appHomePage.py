@@ -24,11 +24,15 @@ def get_sentences():
 
 # 从数据库中随机选一些句子
 def get_random_sentences(size):
-    count_sql = "select COUNT(*) from sentences"
-    sentences_count = execute_sql_query_one(pooldb, count_sql, ())
-    all_size = sentences_count['COUNT(*)']  # 句子总数
-    # 从 id 序列中随机选取 size 个不重复的 id
-    ids = random.sample(range(1, all_size + 1), size)
+    # count_sql = "select COUNT(*) from sentences"
+    # sentences_count = execute_sql_query_one(pooldb, count_sql, ())
+    # all_size = sentences_count['COUNT(*)']  # 句子总数
+    # # 从 id 序列中随机选取 size 个不重复的 id
+    # ids = random.sample(range(1, all_size + 1), size)
+    sql = ' select id from sentences '
+    ids = execute_sql_query(pooldb, sql)
+    ids = list(map(lambda x:x['id'], ids))
+    ids = random.sample(ids, size)
     # 将 id 转换成字符串并用逗号拼接
     id_string = ','.join(str(i) for i in ids)
     # 构造 SQL 语句
