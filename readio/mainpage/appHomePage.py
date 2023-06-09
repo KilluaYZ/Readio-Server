@@ -22,6 +22,42 @@ def get_sentences():
     return sentences
 
 
+def __random_choose_sentences_by_args(args:dict, id_type:list, size:int):
+    """
+    args为dict，其中放入type和概率的键值对，可选的key有
+    Anime, book, Literature, Other, Poem, Philosophy,
+    Comic, Game, Original, Internet, Video, NCM, Funny,
+    所有概率值之和不能大于1，如果大于一则会将前n项的和不大于1的
+    键值对纳入考虑范围，如果第一项就大于1，则会完全随机
+    """
+    tot = 0
+    res = []
+    # 根据所给参数随机选择
+    key_size_dict = {}
+    for key, val in args.items():
+        if tot+val <= 1:
+            key_size_dict[key] = int(val * size)
+            tot += val
+    
+    for key, val in  key_size_dict.items():
+        tmp_list = []
+        for item in id_type:
+            if item['type'] == key:
+                tmp_list.append(item)
+        res = res + random.sample(tmp_list, val)
+    
+    # 加入剩余的
+    cnt = 0
+    for val in key_size_dict.values():
+        cnt += val
+    if cnt < size:
+        res = res + random.sample(id_type, size - cnt)
+    res = list(map(lambda x:int(x['id']), res))
+    return res
+        
+        
+
+
 # 从数据库中随机选一些句子
 def get_random_sentences(size):
     # count_sql = "select COUNT(*) from sentences"
@@ -29,10 +65,11 @@ def get_random_sentences(size):
     # all_size = sentences_count['COUNT(*)']  # 句子总数
     # # 从 id 序列中随机选取 size 个不重复的 id
     # ids = random.sample(range(1, all_size + 1), size)
-    sql = ' select id from sentences '
-    ids = execute_sql_query(pooldb, sql)
-    ids = list(map(lambda x:x['id'], ids))
-    ids = random.sample(ids, size)
+    sql = ' select id, type from sentences '
+    rows = execute_sql_query(pooldb, sql)
+    args = {"book":0.2, "Literature":0.3}
+    ids = __random_choose_sentences_by_args(args, rows, size)
+    
     # 将 id 转换成字符串并用逗号拼接
     id_string = ','.join(str(i) for i in ids)
     # 构造 SQL 语句
