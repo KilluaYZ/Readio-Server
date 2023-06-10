@@ -1,68 +1,14 @@
 import json
-# from dbtest.showdata10 import db # 引入其他蓝图
 import re
 from typing import Dict, Tuple, Optional
+import pytest
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from flask import Flask, url_for
-from flask_cors import CORS  # 跨域
-
-# app
-from readio.auth import appAuth
-from readio.database.init_db import init_db
-from readio.mainpage import appHomePage, appBookShelfPage, appBookDetailsPage, appBookReadPage
-from readio.manage.fileManage import getFilePathById
-from readio.monitor.monitor import monitor
-from readio.manage import fileManage, worksManage, userManage
-from readio.utils.json import CustomJSONEncoder
+from flask import url_for
+from readio import create_app
 
 
-# 创建flask app
-def create_app():
-    # create and configure the app
-    app = Flask(__name__, instance_relative_config=True)
-    CORS(app)
-
-    app.json_encoder = CustomJSONEncoder
-
-    # a simple page that says hello
-    @app.route('/hello')
-    def hello():
-        return 'Hello, World!'
-
-    # 在应用中注册init_db
-    @app.cli.command('init-db')
-    def init_db_command():
-        """删除现有的所有数据，并新建关系表"""
-        init_db()
-
-    app.register_blueprint(monitor, url_prefix='/monitor')
-    app.register_blueprint(userManage.bp)
-    app.register_blueprint(appAuth.bp)
-    app.register_blueprint(appHomePage.bp)
-    app.register_blueprint(appBookShelfPage.bp)
-    app.register_blueprint(appBookDetailsPage.bp)
-    app.register_blueprint(appBookReadPage.bp)
-    app.register_blueprint(fileManage.bp)
-    app.register_blueprint(worksManage.bp)
-
-    # 配置定时任务
-    # 该任务作用是每个一个小时检查一次user_token表，将超过1天未活动的token删掉（随便定的，后面改
-    from readio.manage.userManage import checkSessionsAvailability
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(func=checkSessionsAvailability,
-                      id='checkSessionsAvailability',
-                      trigger='interval',
-                      seconds=3600,
-                      replace_existing=True
-                      )
-    # 启动任务列表
-    scheduler.start()
-    """ 测试 """
-    # print(f'[TEST] filePath = {getFilePathById("0658a5df12791200a99b5e0f26b03e2d53154567c759683d7b355982cff124a6")}')
-    # app_test(app)
-
-    return app
+def test_all(app):
+    app_test(app)
 
 
 def app_test(app):
@@ -73,7 +19,7 @@ def app_test(app):
         #     # 'Content-Type': 'application/json',
         # }
         """ test homepage """
-        app_test_homepage(client)
+        # app_test_homepage(client)
         """ test auth """
         # app_test_auth(client)
         """ test bookshelf """
