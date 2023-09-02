@@ -18,7 +18,7 @@ from readio.utils.myExceptions import *
 from readio.utils.executeSQL import *
 from readio.manage.userManage import get_user_by_id_aux
 from readio.mainpage.appBookDetailsPage import get_sub_comment_ids_stack, check_comment_liked, get_comment_details, check_comment_liked
-
+from readio.manage.fileManage import __upload_file_binary_sql
 # appAuth = Blueprint('/auth/app', __name__)
 bp = Blueprint('worksManage', __name__, url_prefix='/works')
 
@@ -42,7 +42,7 @@ def __random_get_pieces_brief_sql(size: int) -> list:
 
 def __recommend_pieces_sql(idx: int,size: int) -> list:
     sql = 'select piecesId, seriesId, title, userId, status, content, collect, likes, views, shares from pieces order by updateTime desc limit %s, %s '
-    print(f'[DEBUG] idx = {idx}, size = {size}')
+    # print(f'[DEBUG] idx = {idx}, size = {size}')
     offset = int(idx) * int(size)
     rows = execute_sql_query(pooldb, sql, (offset, size))
     return rows
@@ -183,16 +183,19 @@ def get_bref():
             如果没有给访问次数，则按照随机推荐
             """
             queryTimes = request.args.get('queryTimes')
+            # print(f'[DEBUG] queryTimes = {queryTimes}')
             if queryTimes is None:
                 # 按照随机方式推荐
                 rows = __random_get_pieces_brief_sql(15)
             else:    
                 # 每次推送15个，其中三个随机
-                new_rows = __recommend_pieces_sql(queryTimes, 12)
+                new_rows = __recommend_pieces_sql(queryTimes, 30)
                 if len(new_rows) <= 0:
                     rand_rows = __random_get_pieces_brief_sql(15)
                 else:
-                    rand_rows = __random_get_pieces_brief_sql(3)
+                    # rand_rows = __random_get_pieces_brief_sql(3)
+                    rand_rows = []
+
                 rows = []
                 for row in new_rows:
                     rows.append(row)
@@ -263,7 +266,7 @@ def get_bref():
 
         # 获取该pieces的图片列表
         for i in range(len(rows)):
-            rows[i]['images'] = __get_image_id_list_by_piecesId(rows[i]['piecesId'])
+            rows[i]['picArray'] = __get_image_id_list_by_piecesId(rows[i]['piecesId'])
 
         return build_success_response(rows)
 
@@ -426,7 +429,7 @@ def get_pieces_detail():
             user = None
         pieces_comments = __pieces_get_comments_detail_one_depth_reply(pieceId, user)
         piece['comments'] = pieces_comments
-        piece['images'] = __get_image_id_list_by_piecesId(piece['piecesId'])
+        piece['picArray'] = __get_image_id_list_by_piecesId(piece['piecesId'])
 
         return build_success_response(piece)
 
@@ -538,6 +541,11 @@ def __add_pieces_sql(data: dict, trans=None) -> int:
         check.printException(e)
         raise e
 
+def __add_pieces_images(fileInfo: dict, piecesId: int, trans: SqlTransaction):
+    fileId = __upload_file_binary_sql(fileInfo, trans)
+    sql = 'insert into pieces_images(piecesId, fileId) values(%s, %s)'
+    return trans.execute(sql, (piecesId, fileId))
+
 
 @bp.route('/addPieces', methods=['POST'])
 def add_pieces():
@@ -556,6 +564,11 @@ def add_pieces():
             print(
                 f'[DEBUG] 前端数据错误 seriesId: {"seriesId" in data} seriesName: {"seriesName" in data}')
             raise NetworkException(400, "前端数据错误，必须包含seriesId、seriesName其中之一")
+
+        images = []
+        if 'picList' in data:
+            images = data['picList']
+
 
         # 检查权限
         if 'userId' in data:
@@ -604,7 +617,11 @@ def add_pieces():
                         msg = f'标签{tagName}重复添加'
         print(f'[DEBUG] content = {data["content"]}')
 
-        __add_pieces_sql(data, trans)
+        cur_piecesId = __add_pieces_sql(data, trans)
+
+        # 添加images
+        for image in images:
+            __add_pieces_images(image, cur_piecesId, trans)
 
         trans.commit()
 
