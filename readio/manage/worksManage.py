@@ -144,6 +144,12 @@ def __get_all_pieces_count() -> int:
     count = int(row['COUNT(*)'])
     return count
 
+# 获取单个piece的images列表
+def __get_image_id_list_by_piecesId(piecesId: int) -> List:
+    sql = 'select fileId from pieces_images where piecesId = %s'
+    rows = execute_sql_query(pooldb, sql, piecesId)
+    rows = list(map(lambda x:x['fileId'], rows))
+    return rows
 
 @bp.route('/getPiecesBrief', methods=['GET'])
 def get_bref():
@@ -254,6 +260,10 @@ def get_bref():
             print("用户未登录或不存在，不返回点赞收藏信息")
         except Exception as e:
             raise e
+
+        # 获取该pieces的图片列表
+        for i in range(len(rows)):
+            rows[i]['images'] = __get_image_id_list_by_piecesId(rows[i]['piecesId'])
 
         return build_success_response(rows)
 
@@ -416,6 +426,7 @@ def get_pieces_detail():
             user = None
         pieces_comments = __pieces_get_comments_detail_one_depth_reply(pieceId, user)
         piece['comments'] = pieces_comments
+        piece['images'] = __get_image_id_list_by_piecesId(piece['piecesId'])
 
         return build_success_response(piece)
 

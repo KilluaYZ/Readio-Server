@@ -156,13 +156,13 @@ MYSQL_USER = os.environ.get('MYSQL_USER')
 MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD')
 MYSQL_DATABASE = os.environ.get('MYSQL_DATABASE')
 if not MYSQL_HOST:
-    MYSQL_HOST = '43.138.62.72'
+    MYSQL_HOST = 'killuayz.top'
 if not MYSQL_PORT:
-    MYSQL_PORT = 6666
+    MYSQL_PORT = 3306
 if not MYSQL_USER:
-    MYSQL_USER = 'readio'
+    MYSQL_USER = 'root'
 if not MYSQL_PASSWORD:
-    MYSQL_PASSWORD = 'readio'
+    MYSQL_PASSWORD = '123456'
 if not MYSQL_DATABASE:
     MYSQL_DATABASE = 'readio_db'
 
