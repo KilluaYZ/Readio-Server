@@ -146,7 +146,7 @@ def __get_all_pieces_count() -> int:
 
 # 获取单个piece的images列表
 def __get_image_id_list_by_piecesId(piecesId: int) -> List:
-    sql = 'select fileId from pieces_images where piecesId = %s'
+    sql = 'select fileId from pieces_images where piecesId = %s order by showOrder asc'
     rows = execute_sql_query(pooldb, sql, piecesId)
     rows = list(map(lambda x:x['fileId'], rows))
     return rows
@@ -541,10 +541,10 @@ def __add_pieces_sql(data: dict, trans=None) -> int:
         check.printException(e)
         raise e
 
-def __add_pieces_images(fileInfo: dict, piecesId: int, trans: SqlTransaction):
+def __add_pieces_images(fileInfo: dict, piecesId: int, showOrder: int, trans: SqlTransaction):
     fileId = __upload_file_binary_sql(fileInfo, trans)
-    sql = 'insert into pieces_images(piecesId, fileId) values(%s, %s)'
-    return trans.execute(sql, (piecesId, fileId))
+    sql = 'insert into pieces_images(piecesId, fileId, showOrder) values(%s, %s, %s)'
+    return trans.execute(sql, (piecesId, fileId, showOrder))
 
 
 @bp.route('/addPieces', methods=['POST'])
@@ -620,8 +620,8 @@ def add_pieces():
         cur_piecesId = __add_pieces_sql(data, trans)
 
         # 添加images
-        for image in images:
-            __add_pieces_images(image, cur_piecesId, trans)
+        for i in range(len(images)):
+            __add_pieces_images(images[i], cur_piecesId, i,trans)
 
         trans.commit()
 
