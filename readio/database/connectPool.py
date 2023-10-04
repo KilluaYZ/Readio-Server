@@ -162,7 +162,7 @@ if not MYSQL_PORT:
 if not MYSQL_USER:
     MYSQL_USER = 'root'
 if not MYSQL_PASSWORD:
-    MYSQL_PASSWORD = '123456'
+    MYSQL_PASSWORD = 'splandidliver41'
 if not MYSQL_DATABASE:
     MYSQL_DATABASE = 'readio_db'
 

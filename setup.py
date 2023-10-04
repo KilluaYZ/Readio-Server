@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 # 1234c
 setup(
     name='readio',
-    version='1.0.0',
+    version='2.0.0',
     packages=[
         'readio',
         'readio.auth',
@@ -22,6 +22,11 @@ setup(
         'DButils',
         'wordcloud',
         'psutil',
-        'flask_apscheduler'
+        'flask_apscheduler',
+        "bs4",
+        "pdfminer",
+        "mobi",
+        "ebooklib",
+        "chardet"
     ],
 )
